@@ -1,17 +1,19 @@
 use std::fs;
 
-use rsllm::Provider;
 use secret_string::SecretString;
 use serde::Deserialize;
 
-use crate::{Error, ape_dir};
+use crate::{
+    Error, ape_dir,
+    llm::{Model, Provider},
+};
 
 #[derive(Deserialize)]
 struct Settings {
-    provider: rsllm::Provider,
+    provider: Provider,
     // @TODO: Validation model against provider as part of
     // deserialization
-    model: String,
+    model: Model,
 }
 
 struct Credentials {
@@ -39,9 +41,8 @@ impl Config {
         let settings: Settings =
             serde_json::from_str(&json).map_err(|e| Error::Config(e.to_string()))?;
         let api_key_var = match &settings.provider {
-            rsllm::Provider::OpenAI => "OPENAI_API_KEY",
-            rsllm::Provider::Claude => "ANTHROPIC_API_KEY",
-            rsllm::Provider::Ollama => unimplemented!(),
+            Provider::OpenAI => "OPENAI_API_KEY",
+            Provider::Claude => "ANTHROPIC_API_KEY",
         };
         let api_key = read_secret(api_key_var);
         Ok(Self {
@@ -56,7 +57,7 @@ impl Config {
         &self.settings.provider
     }
 
-    pub fn model(&self) -> &str {
+    pub fn model(&self) -> &Model {
         &self.settings.model
     }
 

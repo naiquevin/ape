@@ -4,12 +4,12 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+async-openai = { version = "0.33.0", features = ["_api", "response-types", "responses"] }
 diffy = "0.4.2"
 dirs = "6.0.0"
-rsllm = "0.1.0"
 secret-string = "0.0.2"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 thiserror = "2.0.18"
 tokio = "1.50.0"
-uuid = { version = "1.22.0", features = ["v4"] }
+uuid = { version = "1.22.0", features = ["serde", "v4"] }

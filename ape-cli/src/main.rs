@@ -1,8 +1,8 @@
 use std::{path::PathBuf, process};
 
 use ape_core::{
-    Config, ProposedChange, approve_change, execute_macro, list_macros, reject_change,
-    start_recording, stop_recording,
+    Config, approve_change, execute_macro, list_macros, reject_change, start_recording,
+    stop_recording,
 };
 use clap::{Parser, Subcommand};
 use env_logger::WriteStyle;
@@ -84,11 +84,6 @@ struct Cli {
 }
 
 #[derive(Serialize)]
-struct ExecResult {
-    diffs: Vec<ProposedChange>,
-}
-
-#[derive(Serialize)]
 struct ListResult {
     ids: Vec<Uuid>,
 }
@@ -122,8 +117,8 @@ impl Cli {
                 Ok(CliResponse::default())
             }
             Some(Command::Execute { id, user_msg }) => {
-                let diffs = execute_macro(&config, id, user_msg.as_deref()).await?;
-                let resp = serde_json::to_value(ExecResult { diffs })?;
+                let diff = execute_macro(&config, id, user_msg.as_deref()).await?;
+                let resp = serde_json::to_value(diff)?;
                 Ok(CliResponse::Success(resp))
             }
             Some(Command::Approve { id, diff_id }) => {

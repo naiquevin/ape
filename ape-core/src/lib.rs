@@ -45,19 +45,16 @@ pub async fn execute_macro(
     config: &Config,
     id: &Uuid,
     user_message: Option<&str>,
-) -> Result<Vec<ProposedChange>, Error> {
+) -> Result<ProposedChange, Error> {
     let state = MacroState::load(id)?;
     let curr_file = state.current_file();
     let diff_file = state.diff_file();
-    let changes = llm::send(config, &curr_file, &diff_file, user_message)
-        .await?
-        .into_iter()
-        .map(|diff| ProposedChange {
-            id: Uuid::new_v4(),
-            diff,
-        })
-        .collect();
-    Ok(changes)
+    let resp = llm::send(config, &curr_file, &diff_file, user_message).await?;
+    let change = ProposedChange {
+        id: Uuid::new_v4(),
+        diff: resp.diff,
+    };
+    Ok(change)
 }
 
 /// Approve change does nothing for now besides printing a log

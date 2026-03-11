@@ -1,5 +1,6 @@
 use std::{io, path::PathBuf};
 
+use async_openai::error::OpenAIError;
 use uuid::Uuid;
 
 #[derive(Debug, thiserror::Error)]
@@ -14,8 +15,8 @@ pub enum Error {
     RepoNotFound(PathBuf),
     #[error("Serde Json error: {0}")]
     SerdeJson(#[from] serde_json::Error),
-    #[error("Rsllm error: {0}")]
-    Rsllm(#[from] rsllm::error::RsllmError),
+    #[error("OpenAI error: {0}")]
+    OpenAI(#[from] OpenAIError),
     #[error("Not configured")]
     NotConfigured,
     #[error("Failed to load config: {0}")]
