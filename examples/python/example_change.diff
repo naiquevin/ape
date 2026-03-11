@@ -1,0 +1,18 @@
+8,9c8,11
+< def backup_user_config():
+<     src = os.path.join(BASE_PATH, "config", "user_config.json")
+---
+> def backup_file(config_filename: str) -> bool:
+>     """Back up a file from config/ into backup/, with a timestamp suffix."""
+>     src = os.path.join(BASE_PATH, "config", config_filename)
+>     stem, ext = os.path.splitext(config_filename)
+11c13
+<     dst = os.path.join(BASE_PATH, "backup", f"user_config_{timestamp}.json")
+---
+>     dst = os.path.join(BASE_PATH, "backup", f"{stem}_{timestamp}{ext}")
+18a21,25
+> 
+> 
+> def backup_user_config():
+>     return backup_file("user_config.json")
+> 
