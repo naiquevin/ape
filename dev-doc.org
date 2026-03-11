@@ -1,0 +1,90 @@
+#+title: Ape developer document
+
+* CLI
+** Endpoints
+*** Start recording
+    - Input
+      1. Path to the repo
+      2. Path to the file
+    - Output
+      - a uuid for the "recording"
+    - Implementation
+      + Uuid will be generated
+      + A directory will be created under ~/.parakeet named by the id
+      + An info.json file will be created under this dir
+        + path to the repo
+        + file
+          + path
+          + checksum
+        + state
+          + initial state will be ~recording-started~
+          + other state will be ~recording-complete~
+      + A copy of the file will be created under the dir
+        + Example: ~filename.rs~
+      + The uuid will be written to stdout
+*** End recording
+    - Input
+      1. uuid of the recording obtained from the "Start recording"
+         operation
+    - Output: None
+    - Implementation
+      + A diff of the old and new file will be created e.g. changes.diff
+*** Execute macro / Repeat action
+    - Input
+      + uuid
+      + User message: E.g. "Repeat the action for the function foo"
+    - Behaviour
+      + LLM call is made with a prompt that includes the user message
+        and the content of the current version of the file.
+      + LLM is expected to return a diff
+      + The diff will be first stored in the directory and given an id
+    - Output
+      + diff-id
+      + diff
+*** Approve
+    - Approve a diff
+    - Input
+      + uuid
+      + diff-id
+    - Behaviour
+      + The approved diff will be applied in the db
+      + The diff will marked as "applied" in state
+    - Output: None
+*** Reject
+    - Reject a diff
+    - Input
+      + uuid
+      + diff-id
+    - Behaviour
+      + The diff will be marked as "rejected" in state
+
+** Workflow
+   - User will type a keybinding in emacs to start recording
+   - Emacs layer will call the ~start-recording~ cli command
+   - Emacs layer will store the uuid in memory
+   - User will make changes
+   - User will type a keybinding in emacs to stop recording
+   - Emacs layer will call the ~stop-recording~ cli command
+   - User will type a keybinding to repeat/execute the macro. Here,
+     the user may also add a prompt (A new buffer will open for this)
+   - Emacs layer will call the ~execute-macro~ cli command
+   - The CLI app will make the LLM call and generate the diff
+   - Emacs layer will show the diff in another buffer where each hunk
+     can be applied (perhaps the same buffer can be used)
+   - If the diff is approved and applied, emacs layer will call ~approve~ cli
+     command
+   - If the diff is rejected, emacs layer will call ~reject~ cli command
+   - User can keep calling ~execute-macro~ any no. of times
+
+* Emacs operations
+  1. Start recording
+  2. Stop recording
+  3. Execute macro
+     + The latest macro in state (memory) will be used by default
+  4. Execute specific macro
+     + Same as (3) but allows selecting from among many macros
+  5. Approve diff
+  6. Reject diff
+  7. Load recordings
+     + By default only recordings in memory will be considered. But
+       old data on disk can also be loaded using this operation.
