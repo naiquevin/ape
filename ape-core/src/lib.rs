@@ -1,15 +1,25 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use diffy::create_patch;
+use serde::Serialize;
 use uuid::Uuid;
 
-use crate::{config::Config, error::Error, state::MacroState};
+pub use crate::config::Config;
+pub use crate::error::Error;
+use crate::state::{MacroState, list_recorded_macros};
 
 mod config;
 mod error;
 mod llm;
 mod state;
 
+fn ape_dir() -> PathBuf {
+    dirs::home_dir()
+        .expect("Problem resolving home dir")
+        .join(".ape")
+}
+
+#[derive(Serialize)]
 pub struct ProposedChange {
     pub id: Uuid,
     pub diff: String,
@@ -34,12 +44,12 @@ pub fn stop_recording(id: &Uuid) -> Result<(), Error> {
 pub async fn execute_macro(
     config: &Config,
     id: &Uuid,
-    user_message: Option<String>,
+    user_message: Option<&str>,
 ) -> Result<Vec<ProposedChange>, Error> {
     let state = MacroState::load(id)?;
     let curr_file = state.current_file();
     let diff_file = state.diff_file();
-    let changes = llm::send(config, &curr_file, &diff_file, user_message.as_deref())
+    let changes = llm::send(config, &curr_file, &diff_file, user_message)
         .await?
         .into_iter()
         .map(|diff| ProposedChange {
@@ -59,4 +69,8 @@ pub fn approve_change(id: &Uuid, change_id: &Uuid) {
 /// Reject change does nothing for now besides printing a log
 pub fn reject_change(id: &Uuid, change_id: &Uuid) {
     println!("[Macro: {id}] Change id was rejected: {change_id}");
+}
+
+pub fn list_macros(repo_path: Option<&Path>) -> Result<Vec<Uuid>, Error> {
+    Ok(list_recorded_macros(repo_path)?)
 }

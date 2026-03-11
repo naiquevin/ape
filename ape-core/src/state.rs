@@ -1,13 +1,13 @@
 use std::{
     fs::{self, File},
-    io::{BufReader, BufWriter},
+    io::{self, BufReader, BufWriter},
     path::{Path, PathBuf},
 };
 
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::error::Error;
+use crate::{ape_dir, error::Error};
 
 #[derive(Serialize, Deserialize)]
 enum MacroStatus {
@@ -22,8 +22,14 @@ struct MacroMetadata {
     status: MacroStatus,
 }
 
+impl MacroMetadata {
+    fn is_recorded(&self) -> bool {
+        matches!(self.status, MacroStatus::Recorded)
+    }
+}
+
 fn state_dir_path(id: &Uuid) -> PathBuf {
-    PathBuf::from("~/.ape").join(id.to_string())
+    ape_dir().join(id.to_string())
 }
 
 fn find_git_root(file_path: &Path) -> Option<PathBuf> {
@@ -139,4 +145,50 @@ impl MacroState {
         serde_json::to_writer(writer, &self.metadata)?;
         Ok(())
     }
+}
+
+pub fn list_recorded_macros(repo_path: Option<&Path>) -> Result<Vec<Uuid>, io::Error> {
+    let mut result = Vec::new();
+
+    for entry in fs::read_dir(ape_dir())? {
+        let entry = entry?;
+        let path = entry.path();
+
+        if !path.is_dir() {
+            continue;
+        }
+
+        let dir_name = entry.file_name();
+        let id_str = match dir_name.to_str() {
+            Some(name) => name,
+            None => continue,
+        };
+
+        let id = match Uuid::parse_str(id_str) {
+            Ok(u) => u,
+            Err(_) => continue,
+        };
+
+        let metadata_path = path.join("metadata.json");
+        if !metadata_path.exists() {
+            continue;
+        }
+
+        let file = fs::File::open(metadata_path)?;
+        let metadata: MacroMetadata = serde_json::from_reader(file)?;
+
+        // Skip macros that are not recorded completely
+        if !metadata.is_recorded() {
+            continue;
+        }
+
+        // If repo_path is specified, filter by that too
+        if repo_path.is_some_and(|p| metadata.repo_path != p) {
+            continue;
+        }
+
+        result.push(id);
+    }
+
+    Ok(result)
 }

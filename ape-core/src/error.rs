@@ -16,6 +16,8 @@ pub enum Error {
     SerdeJson(#[from] serde_json::Error),
     #[error("Rsllm error: {0}")]
     Rsllm(#[from] rsllm::error::RsllmError),
+    #[error("Not configured")]
+    NotConfigured,
     #[error("Failed to load config: {0}")]
     Config(String),
 }
