@@ -56,13 +56,13 @@ pub fn stop_recording(id: &Uuid) -> Result<(), Error> {
 pub async fn execute_macro(
     config: &Config,
     id: &Uuid,
+    file_path: &Path,
     user_message: Option<&str>,
 ) -> Result<ProposedChange, Error> {
     let state = MacroState::load(id)?;
-    let curr_file = state.current_file();
     let diff_file = state.diff_file();
-    let edit = llm::send(config, &curr_file, &diff_file, user_message).await?;
-    let diff = edit.diff(&curr_file)?;
+    let edit = llm::send(config, &file_path, &diff_file, user_message).await?;
+    let diff = edit.diff(&file_path)?;
     let change = ProposedChange {
         id: Uuid::new_v4(),
         diff_b64: STANDARD.encode(diff.as_bytes()),

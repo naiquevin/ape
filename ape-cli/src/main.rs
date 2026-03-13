@@ -53,10 +53,14 @@ enum Command {
     },
     #[command(about = "Stop recording")]
     Stop {
+        /// Macro id that was returned by the stop command
         id: Uuid,
     },
     Execute {
+        /// Macro id that was returned by the stop command
         id: Uuid,
+        /// Path to the file on which the macro has to be executed
+        file_path: PathBuf,
         #[arg(long, help = "Additional message from the user")]
         user_msg: Option<String>,
     },
@@ -116,8 +120,8 @@ impl Cli {
                 stop_recording(id)?;
                 Ok(CliResponse::default())
             }
-            Some(Command::Execute { id, user_msg }) => {
-                let diff = execute_macro(&config, id, user_msg.as_deref()).await?;
+            Some(Command::Execute { id, file_path, user_msg }) => {
+                let diff = execute_macro(&config, id, file_path, user_msg.as_deref()).await?;
                 let resp = serde_json::to_value(diff)?;
                 Ok(CliResponse::Success(resp))
             }
