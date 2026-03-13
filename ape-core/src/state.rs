@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     fs::{self, File},
     io::{self, BufReader, BufWriter},
     path::{Path, PathBuf},
@@ -107,6 +108,14 @@ impl MacroState {
             dir_path,
             metadata,
         })
+    }
+
+    pub fn original_file_name(&self) -> Cow<'_, str> {
+        self.metadata
+            .file_path
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
     }
 
     fn original_file(&self) -> PathBuf {

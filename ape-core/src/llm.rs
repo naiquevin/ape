@@ -11,7 +11,7 @@ use async_openai::{
 use secret_string::SecretString;
 use serde::{Deserialize, Serialize};
 
-use crate::{Error, config::Config};
+use crate::{Error, config::Config, edit::Edit};
 
 /// Supported LLM providers
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -68,7 +68,6 @@ fn make_prompt(
     let src_code = fs::read_to_string(curr_file)?;
     let diff = fs::read_to_string(diff_file)?;
 
-    let example_json_format = r#"{"diff": "<..diff..>"}"#;
     let sys_prompt = format!(
         r#"Go through the two files attached below (contents included inline):
 
@@ -82,14 +81,14 @@ File: changes.diff
 
 changes.diff represents an example change made to the source
 code. Understand the change and make additional changes as per the
-instructions in the user message that follows. Return the diff inside
-a json string as follows,
+instructions in the user message that follows. Return the "edit" as
+json with fields:
+- file
+- start_line
+- end_line
+- replacement (array of lines)
 
-```
-{example_json_format}
-```
-
-Note that the response format must be json string exactly like above.
+Do not return the entire file. Only include lines that change.
 "#
     );
     let user_prompt = match user_message {
@@ -110,16 +109,16 @@ fn clean_json(s: &str) -> &str {
         .trim()
 }
 
-#[derive(Deserialize)]
-pub struct DiffResponse {
-    pub diff: String,
-}
+// #[derive(Deserialize)]
+// pub struct DiffResponse {
+//     pub diff: String,
+// }
 
 async fn send_openai(
     model: &Model,
     api_key: &SecretString<String>,
     prompt: Prompt,
-) -> Result<DiffResponse, Error> {
+) -> Result<Edit, Error> {
     let config = OpenAIConfig::new().with_api_key(api_key.value());
     let client = Client::with_config(config);
     let request = CreateResponseArgs::default()
@@ -140,7 +139,7 @@ async fn send_openai(
 
     let response = client.responses().create(request).await?;
 
-    let mut llm_response: Option<DiffResponse> = None;
+    let mut llm_response: Option<Edit> = None;
 
     for output in response.output {
         if let OutputItem::Message(output_message) = output {
@@ -174,7 +173,7 @@ pub async fn send(
     curr_file: &Path,
     diff_file: &Path,
     user_message: Option<&str>,
-) -> Result<DiffResponse, Error> {
+) -> Result<Edit, Error> {
     let prompt = make_prompt(curr_file, diff_file, user_message)?;
     match config.provider() {
         Provider::OpenAI => send_openai(config.model(), config.api_key(), prompt).await,

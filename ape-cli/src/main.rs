@@ -145,7 +145,7 @@ async fn main() {
     let result = cli.execute().await;
     match result {
         Ok(CliResponse::Success(json)) => {
-            println!("{}\n", serde_json::to_string(&json).unwrap());
+            println!("{}", serde_json::to_string(&json).unwrap());
             process::exit(0);
         }
         Ok(CliResponse::Failure(msg)) => {

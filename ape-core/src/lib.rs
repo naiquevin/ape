@@ -1,7 +1,8 @@
 use std::path::{Path, PathBuf};
 
-use diffy::create_patch;
+use base64::{Engine, engine::general_purpose::STANDARD};
 use serde::Serialize;
+use similar::TextDiff;
 use uuid::Uuid;
 
 pub use crate::config::Config;
@@ -9,6 +10,7 @@ pub use crate::error::Error;
 use crate::state::{MacroState, list_recorded_macros};
 
 mod config;
+mod edit;
 mod error;
 mod llm;
 mod state;
@@ -19,10 +21,19 @@ fn ape_dir() -> PathBuf {
         .join(".ape")
 }
 
+/// Generate a diff in standard format
+fn generate_diff(old: &str, new: &str, a_file: &str, b_file: &str) -> String {
+    let diff = TextDiff::from_lines(old, new);
+    diff.unified_diff()
+        .context_radius(3)
+        .header(&format!("a/{}", a_file), &format!("b/{}", b_file))
+        .to_string()
+}
+
 #[derive(Serialize)]
 pub struct ProposedChange {
     pub id: Uuid,
-    pub diff: String,
+    pub diff_b64: String,
 }
 
 pub fn start_recording(file_path: &Path, repo_path: Option<&Path>) -> Result<Uuid, Error> {
@@ -35,7 +46,8 @@ pub fn stop_recording(id: &Uuid) -> Result<(), Error> {
     let mut state = MacroState::load(id)?;
     let original = state.original_file_contents()?;
     let current = state.current_file_contents()?;
-    let diff = create_patch(&original, &current).to_string();
+    let file_name = state.original_file_name();
+    let diff = generate_diff(&original, &current, &file_name, &file_name);
     state.add_diff(diff)?;
     state.flush()?;
     Ok(())
@@ -49,10 +61,11 @@ pub async fn execute_macro(
     let state = MacroState::load(id)?;
     let curr_file = state.current_file();
     let diff_file = state.diff_file();
-    let resp = llm::send(config, &curr_file, &diff_file, user_message).await?;
+    let edit = llm::send(config, &curr_file, &diff_file, user_message).await?;
+    let diff = edit.diff(&curr_file)?;
     let change = ProposedChange {
         id: Uuid::new_v4(),
-        diff: resp.diff,
+        diff_b64: STANDARD.encode(diff.as_bytes()),
     };
     Ok(change)
 }
