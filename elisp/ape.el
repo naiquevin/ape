@@ -163,10 +163,17 @@
                 (concat "true" " 2>" (shell-quote-argument stderr-file)))))
     (ape--log 'info "Executing with message: %S" user-message)
     (message "AI macro running...")
+    ;; Set stderr-file as the property on the process so that it's
+    ;; available inside the closure through the process object that's
+    ;; passed to it. Otherwise the stderr-file variable in the let*
+    ;; binding won't be accessible inside the closure thanks to
+    ;; dynamic binding (by default) in emacs.
+    (process-put proc :stderr-file stderr-file)
     (set-process-sentinel
      proc
      (lambda (proc event)
-       (let ((exit-code (process-exit-status proc)))
+       (let ((exit-code (process-exit-status proc))
+             (stderr-file (process-get proc :stderr-file)))
          (if (zerop exit-code)
              (with-current-buffer (process-buffer proc)
                (condition-case _
