@@ -17,6 +17,9 @@
 (defvar ape--recording-id nil
   "Non-nil when recording is active.")
 
+(defvar ape--target-file nil
+  "Non-nil when execute is called")
+
 
 ;;; Cache
 
@@ -101,8 +104,9 @@
 
 ;;; Diff view buffer
 
-(defun ape--show-diff (diff-text)
+(defun ape--show-diff (diff-text target-file)
   "Display DIFF-TEXT in a review buffer."
+  (setq ape--target-file target-file)
   (let ((buf (get-buffer-create "*APE Diff*")))
     (with-current-buffer buf
       (let ((inhibit-read-only t))
@@ -112,18 +116,33 @@
       (goto-char (point-min)))
     (pop-to-buffer buf)))
 
-
 (defun ape-apply-diff ()
   "Apply the diff in the current review buffer."
   (interactive)
-  (quit-window t)
-  (ape--log 'info "apply-diff to be implemented"))
+  (let ((diff-text (buffer-string))
+        (tmpfile (make-temp-file "ape-" nil ".patch")))
+    (let ((coding-system-for-write 'utf-8))
+      (write-region diff-text nil tmpfile))
+    (let ((result (call-process "patch"
+                                nil nil nil
+                                ape--target-file "-i" tmpfile)))
+      (delete-file tmpfile)
+      (if (zerop result)
+          (progn
+            (message "Diff applied successfully.")
+            (quit-window t)
+            ;; revert the target buffer if it's open
+            (when-let ((target-buffer (find-buffer-visiting ape--target-file)))
+              (with-current-buffer target-buffer
+                (revert-buffer t t t))))
+        (message "Failed to apply diff. Check *Messages* for details.")))))
 
-(defun ai-macro-reject-diff ()
+
+(defun ape-reject-diff ()
   "Reject the diff and close the review buffer."
   (interactive)
-  (quit-window t)
-  (ape--log 'info "reject-diff to be implemented"))
+  (setq ape--target-file nil)
+  (quit-window t))
 
 ;;; Operations
 
@@ -142,7 +161,6 @@
   (interactive)
   (condition-case err
       (let ((resp (ape--run-command "stop" ape--recording-id)))
-        (setq ape--recording-id nil)
         (ape--modeline-rec-status)
         (message "APE recording stopped")
         (ape--log 'error "Recording stopped: %s" ape--recording-id))
@@ -159,16 +177,18 @@
                          (cons ape-cli-command args) " "))
          (proc (start-process-shell-command
                 "ape-execute" stdout-buf
-                ;; @TODO: Replace "true" with cmd
-                (concat "true" " 2>" (shell-quote-argument stderr-file)))))
-    (ape--log 'info "Executing with message: %S" user-message)
-    (message "AI macro running...")
+                (concat cmd " 2>" (shell-quote-argument stderr-file)))))
+    ;; (ape--log 'debug "Command: %s" cmd)
+    (set-process-coding-system proc 'utf-8 'utf-8)
     ;; Set stderr-file as the property on the process so that it's
     ;; available inside the closure through the process object that's
     ;; passed to it. Otherwise the stderr-file variable in the let*
     ;; binding won't be accessible inside the closure thanks to
     ;; dynamic binding (by default) in emacs.
     (process-put proc :stderr-file stderr-file)
+    (process-put proc :target-file buffer-file-name)
+    (ape--log 'info "Executing with message: %S" user-message)
+    (message "AI macro running...")
     (set-process-sentinel
      proc
      (lambda (proc event)
@@ -176,13 +196,13 @@
              (stderr-file (process-get proc :stderr-file)))
          (if (zerop exit-code)
              (with-current-buffer (process-buffer proc)
+               ;; (ape--log 'debug "Output = %S" (buffer-string))
                (condition-case _
-                   (let* (;; (resp (json-parse-string (buffer-string) :object-type 'alist))
-                          ;; (diff (base64-decode-string (alist-get 'diff resp)))
-                          (diff (base64-decode-string "LS0tIGEvYmFja3Vwcy5weQorKysgYi9iYWNrdXBzLnB5CkBAIC0zNywxNiArMzcsOCBAQAogICAgIHJldHVybiBUcnVlCiAKIGRlZiBiYWNrdXBfbmV0d29ya19jb25maWcoKToKLSAgICBzcmMgPSBvcy5wYXRoLmpvaW4oQkFTRV9QQVRILCAiY29uZmlnIiwgIm5ldHdvcmtfY29uZmlnLmpzb24iKQotICAgIHRpbWVzdGFtcCA9IGRhdGV0aW1lLm5vdygpLnN0cmZ0aW1lKCIlWSVtJWRfJUglTSVTIikKLSAgICBkc3QgPSBvcy5wYXRoLmpvaW4oQkFTRV9QQVRILCAiYmFja3VwIiwgZiJuZXR3b3JrX2NvbmZpZ197dGltZXN0YW1wfS5qc29uIikKLSAgICBpZiBub3Qgb3MucGF0aC5leGlzdHMoc3JjKToKLSAgICAgICAgcHJpbnQoZiJbRVJST1JdIFNvdXJjZSBmaWxlIG5vdCBmb3VuZDoge3NyY30iKQotICAgICAgICByZXR1cm4gRmFsc2UKLSAgICBvcy5tYWtlZGlycyhvcy5wYXRoLmRpcm5hbWUoZHN0KSwgZXhpc3Rfb2s9VHJ1ZSkKLSAgICBzaHV0aWwuY29weTIoc3JjLCBkc3QpCi0gICAgcHJpbnQoZiJbSU5GT10gQmFja2VkIHVwIHtzcmN9IOKGkiB7ZHN0fSIpCi0gICAgcmV0dXJuIFRydWUKKyAgICByZXR1cm4gYmFja3VwX2ZpbGUoIm5ldHdvcmtfY29uZmlnLmpzb24iKQorCiAKIAogaWYgX19uYW1lX18gPT0gIl9fbWFpbl9fIjoK")))
+                   (let* ((resp (json-parse-string (buffer-string) :object-type 'alist))
+                          (diff (base64-decode-string (alist-get 'diff_b64 resp))))
                      (if (or (null diff) (string-empty-p diff))
                          (message "No changes suggested.")
-                       (ape--show-diff diff)))
+                       (ape--show-diff diff (process-get proc :target-file))))
                  (json-parse-error
                   (ape--log 'error "Invalid JSON: %s" (buffer-string))
                   (message "AI macro error: malformed response"))))
@@ -215,9 +235,9 @@ Inherits from `diff-mode'. Use \\[ape-apply-diff] to apply,
 
 (defvar ape-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-c a s") #'ape-start)
-    (define-key map (kbd "C-c a S") #'ape-stop)
-    (define-key map (kbd "C-c a e") #'ape-execute)
+    (define-key map (kbd "C-c x (") #'ape-start-macro)
+    (define-key map (kbd "C-c x )") #'ape-stop-macro)
+    (define-key map (kbd "C-c x e") #'ape-execute)
     map)
   "Keymap for `ape-mode'.")
 
@@ -226,3 +246,5 @@ Inherits from `diff-mode'. Use \\[ape-apply-diff] to apply,
   :lighter " Ape"
   :keymap ape-mode-map
   :global t)
+
+(provide 'ape-mode)
