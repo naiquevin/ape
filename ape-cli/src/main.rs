@@ -1,9 +1,6 @@
 use std::{path::PathBuf, process};
 
-use ape_core::{
-    Config, approve_change, execute_macro, list_macros, reject_change, start_recording,
-    stop_recording,
-};
+use ape_core::{Config, execute_macro, list_macros, start_recording, stop_recording};
 use clap::{Parser, Subcommand};
 use env_logger::WriteStyle;
 use log::LevelFilter;
@@ -64,14 +61,6 @@ enum Command {
         #[arg(long, help = "Additional message from the user")]
         user_msg: Option<String>,
     },
-    Approve {
-        id: Uuid,
-        diff_id: Uuid,
-    },
-    Reject {
-        id: Uuid,
-        diff_id: Uuid,
-    },
     List {
         #[arg(long, help = "Filter recordings from this repo only")]
         repo_path: Option<PathBuf>,
@@ -128,14 +117,6 @@ impl Cli {
                 let diff = execute_macro(&config, id, file_path, user_msg.as_deref()).await?;
                 let resp = serde_json::to_value(diff)?;
                 Ok(CliResponse::Success(resp))
-            }
-            Some(Command::Approve { id, diff_id }) => {
-                approve_change(id, diff_id);
-                Ok(CliResponse::default())
-            }
-            Some(Command::Reject { id, diff_id }) => {
-                reject_change(id, diff_id);
-                Ok(CliResponse::default())
             }
             Some(Command::List { repo_path }) => {
                 let ids = list_macros(repo_path.as_deref())?;

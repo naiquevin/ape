@@ -70,17 +70,6 @@ pub async fn execute_macro(
     Ok(change)
 }
 
-/// Approve change does nothing for now besides printing a log
-pub fn approve_change(id: &Uuid, change_id: &Uuid) {
-    // Replace with logs
-    println!("[Macro: {id}] Change id was approved: {change_id}");
-}
-
-/// Reject change does nothing for now besides printing a log
-pub fn reject_change(id: &Uuid, change_id: &Uuid) {
-    println!("[Macro: {id}] Change id was rejected: {change_id}");
-}
-
 pub fn list_macros(repo_path: Option<&Path>) -> Result<Vec<Uuid>, Error> {
     Ok(list_recorded_macros(repo_path)?)
 }
