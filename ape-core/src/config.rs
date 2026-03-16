@@ -1,4 +1,4 @@
-use std::fs;
+use std::{env::VarError, fs};
 
 use secret_string::SecretString;
 use serde::Deserialize;
@@ -20,8 +20,8 @@ struct Credentials {
     api_key: SecretString<String>,
 }
 
-fn read_secret(name: &str) -> SecretString<String> {
-    SecretString::new(std::env::var(name).unwrap())
+fn read_secret(name: &str) -> Result<SecretString<String>, VarError> {
+    std::env::var(name).map(SecretString::new)
 }
 
 pub struct Config {
@@ -44,7 +44,8 @@ impl Config {
             Provider::OpenAI => "OPENAI_API_KEY",
             Provider::Claude => "ANTHROPIC_API_KEY",
         };
-        let api_key = read_secret(api_key_var);
+        let api_key = read_secret(api_key_var)
+            .map_err(|_| Error::Credential(api_key_var.to_string()))?;
         Ok(Self {
             settings,
             creds: Credentials { api_key },

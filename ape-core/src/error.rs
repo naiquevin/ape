@@ -21,4 +21,6 @@ pub enum Error {
     NotConfigured,
     #[error("Failed to load config: {0}")]
     Config(String),
+    #[error("Credential not set in env var: {0}")]
+    Credential(String),
 }
