@@ -151,8 +151,7 @@ async fn send_openai(
                         &output_message.content[0]
                     {
                         let cleaned_text = clean_json(&output_text.text);
-                        // @TODO: Remove unwrap
-                        llm_response = serde_json::from_str(&cleaned_text).unwrap();
+                        llm_response = serde_json::from_str(&cleaned_text)?;
                     }
                 } else {
                     println!(
@@ -164,8 +163,7 @@ async fn send_openai(
         }
     }
 
-    // @TODO: Handle errors
-    Ok(llm_response.unwrap())
+    llm_response.ok_or(Error::LLMResponse)
 }
 
 pub async fn send(

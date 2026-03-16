@@ -23,4 +23,6 @@ pub enum Error {
     Config(String),
     #[error("Credential not set in env var: {0}")]
     Credential(String),
+    #[error("Failed to obtain LLM response in expected format")]
+    LLMResponse,
 }
