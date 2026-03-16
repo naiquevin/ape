@@ -39,7 +39,7 @@ pub enum Model {
 
 impl std::fmt::Display for Model {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let value = serde_json::to_value(&self).unwrap();
+        let value = serde_json::to_value(self).unwrap();
         let s = value.as_str().unwrap();
         write!(f, "{s}")
     }
@@ -122,7 +122,7 @@ async fn send_openai(
     let config = OpenAIConfig::new().with_api_key(api_key.value());
     let client = Client::with_config(config);
     let request = CreateResponseArgs::default()
-        .model(&model.to_string())
+        .model(model.to_string())
         .input(InputParam::Items(vec![
             InputItem::EasyMessage(EasyInputMessage {
                 r#type: MessageType::Message,
@@ -142,23 +142,20 @@ async fn send_openai(
     let mut llm_response: Option<Edit> = None;
 
     for output in response.output {
-        if let OutputItem::Message(output_message) = output {
-            if let (AssistantRole::Assistant, OutputStatus::Completed) =
+        if let OutputItem::Message(output_message) = output
+            && let (AssistantRole::Assistant, OutputStatus::Completed) =
                 (output_message.role, output_message.status)
-            {
-                if output_message.content.len() == 1 {
-                    if let OutputMessageContent::OutputText(output_text) =
-                        &output_message.content[0]
-                    {
-                        let cleaned_text = clean_json(&output_text.text);
-                        llm_response = serde_json::from_str(&cleaned_text)?;
-                    }
-                } else {
-                    println!(
-                        "Multiple content objects received in response: {:?}",
-                        output_message.content
-                    );
+        {
+            if output_message.content.len() == 1 {
+                if let OutputMessageContent::OutputText(output_text) = &output_message.content[0] {
+                    let cleaned_text = clean_json(&output_text.text);
+                    llm_response = serde_json::from_str(cleaned_text)?;
                 }
+            } else {
+                println!(
+                    "Multiple content objects received in response: {:?}",
+                    output_message.content
+                );
             }
         }
     }

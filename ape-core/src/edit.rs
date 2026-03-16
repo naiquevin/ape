@@ -40,8 +40,11 @@ mod tests {
     fn test_diff_from_edit() {
         let resp = r#"{"end_line":41,"file":"backups.py","id":"4defa09a-d6ba-4ed9-8cf1-7dd24b9729eb","replacement":["def backup_network_config():","    return backup_file(\"network_config.json\")","",""],"start_line":31}"#;
         let edit: Edit = serde_json::from_str(resp).unwrap();
-        let diff = edit.diff(Path::new("/home/vineet/code/ape/examples/python/backups.py")).unwrap();
+        let diff = edit
+            .diff(Path::new(
+                "/home/vineet/code/ape/examples/python/backups.py",
+            ))
+            .unwrap();
         fs::write("/tmp/example2.diff", diff).unwrap();
     }
-
 }

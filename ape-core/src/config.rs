@@ -44,8 +44,8 @@ impl Config {
             Provider::OpenAI => "OPENAI_API_KEY",
             Provider::Claude => "ANTHROPIC_API_KEY",
         };
-        let api_key = read_secret(api_key_var)
-            .map_err(|_| Error::Credential(api_key_var.to_string()))?;
+        let api_key =
+            read_secret(api_key_var).map_err(|_| Error::Credential(api_key_var.to_string()))?;
         Ok(Self {
             settings,
             creds: Credentials { api_key },

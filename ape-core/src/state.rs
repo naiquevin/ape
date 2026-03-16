@@ -98,13 +98,13 @@ impl MacroState {
         let metadata_file_path = dir_path.join("metadata.json");
         match fs::exists(&metadata_file_path) {
             Ok(true) => {}
-            _ => return Err(Error::MacroNotFound(id.clone())),
+            _ => return Err(Error::MacroNotFound(*id)),
         }
         let file = File::open(metadata_file_path)?;
         let reader = BufReader::new(file);
         let metadata: MacroMetadata = serde_json::from_reader(reader)?;
         Ok(Self {
-            id: id.clone(),
+            id: *id,
             dir_path,
             metadata,
         })

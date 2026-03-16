@@ -120,7 +120,11 @@ impl Cli {
                 stop_recording(id)?;
                 Ok(CliResponse::default())
             }
-            Some(Command::Execute { id, file_path, user_msg }) => {
+            Some(Command::Execute {
+                id,
+                file_path,
+                user_msg,
+            }) => {
                 let diff = execute_macro(&config, id, file_path, user_msg.as_deref()).await?;
                 let resp = serde_json::to_value(diff)?;
                 Ok(CliResponse::Success(resp))

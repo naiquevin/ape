@@ -61,8 +61,8 @@ pub async fn execute_macro(
 ) -> Result<ProposedChange, Error> {
     let state = MacroState::load(id)?;
     let diff_file = state.diff_file();
-    let edit = llm::send(config, &file_path, &diff_file, user_message).await?;
-    let diff = edit.diff(&file_path)?;
+    let edit = llm::send(config, file_path, &diff_file, user_message).await?;
+    let diff = edit.diff(file_path)?;
     let change = ProposedChange {
         id: Uuid::new_v4(),
         diff_b64: STANDARD.encode(diff.as_bytes()),
