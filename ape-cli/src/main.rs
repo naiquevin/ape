@@ -1,6 +1,6 @@
 use std::{path::PathBuf, process};
 
-use ape_core::{Config, execute_macro, list_macros, set_macro_name, start_recording, stop_recording};
+use ape_core::{Config, RecordedMacro, execute_macro, list_macros, set_macro_name, start_recording, stop_recording};
 use clap::{Parser, Subcommand};
 use env_logger::WriteStyle;
 use log::LevelFilter;
@@ -85,7 +85,7 @@ struct Cli {
 
 #[derive(Serialize)]
 struct ListResult {
-    ids: Vec<Uuid>,
+    macros: Vec<RecordedMacro>,
 }
 
 enum CliResponse {
@@ -127,8 +127,8 @@ impl Cli {
                 Ok(CliResponse::Success(resp))
             }
             Some(Command::List { repo_path }) => {
-                let ids = list_macros(repo_path.as_deref())?;
-                let resp = serde_json::to_value(ListResult { ids })?;
+                let macros = list_macros(repo_path.as_deref())?;
+                let resp = serde_json::to_value(ListResult { macros })?;
                 Ok(CliResponse::Success(resp))
             }
             Some(Command::SetName { id, name }) => {

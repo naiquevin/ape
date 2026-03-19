@@ -17,11 +17,11 @@ enum MacroStatus {
 }
 
 #[derive(Serialize, Deserialize)]
-struct MacroMetadata {
-    file_path: PathBuf,
-    repo_path: PathBuf,
+pub struct MacroMetadata {
+    pub file_path: PathBuf,
+    pub repo_path: PathBuf,
     #[serde(skip_serializing_if = "Option::is_none")]
-    name: Option<String>,
+    pub name: Option<String>,
     status: MacroStatus,
 }
 
@@ -163,7 +163,7 @@ impl MacroState {
     }
 }
 
-pub fn list_recorded_macros(repo_path: Option<&Path>) -> Result<Vec<Uuid>, io::Error> {
+pub fn list_recorded_macros(repo_path: Option<&Path>) -> Result<Vec<(Uuid, MacroMetadata)>, io::Error> {
     let mut result = Vec::new();
 
     for entry in fs::read_dir(ape_dir())? {
@@ -203,7 +203,7 @@ pub fn list_recorded_macros(repo_path: Option<&Path>) -> Result<Vec<Uuid>, io::E
             continue;
         }
 
-        result.push(id);
+        result.push((id, metadata));
     }
 
     Ok(result)

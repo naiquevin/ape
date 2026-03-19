@@ -77,6 +77,24 @@ pub fn set_macro_name(id: &Uuid, name: &str) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn list_macros(repo_path: Option<&Path>) -> Result<Vec<Uuid>, Error> {
-    Ok(list_recorded_macros(repo_path)?)
+#[derive(Serialize)]
+pub struct RecordedMacro {
+    id: Uuid,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    name: Option<String>,
+    file_path: PathBuf,
+    repo_path: PathBuf,
+}
+
+pub fn list_macros(repo_path: Option<&Path>) -> Result<Vec<RecordedMacro>, Error> {
+    let macros = list_recorded_macros(repo_path)?
+        .into_iter()
+        .map(|(id, metadata)| RecordedMacro {
+            id,
+            name: metadata.name,
+            file_path: metadata.file_path,
+            repo_path: metadata.repo_path,
+        })
+        .collect();
+    Ok(macros)
 }
