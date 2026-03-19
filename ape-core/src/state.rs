@@ -20,6 +20,8 @@ enum MacroStatus {
 struct MacroMetadata {
     file_path: PathBuf,
     repo_path: PathBuf,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    name: Option<String>,
     status: MacroStatus,
 }
 
@@ -59,7 +61,7 @@ pub struct MacroState {
 }
 
 impl MacroState {
-    pub fn new(file_path: &Path, opt_repo_path: Option<&Path>) -> Result<Self, Error> {
+    pub fn new(file_path: &Path, opt_repo_path: Option<&Path>, name: Option<&str>) -> Result<Self, Error> {
         let repo_path = match opt_repo_path {
             Some(p) => {
                 if !file_path.starts_with(p) {
@@ -84,6 +86,7 @@ impl MacroState {
         let metadata = MacroMetadata {
             file_path: file_path.to_path_buf(),
             repo_path,
+            name: name.map(|s| s.to_owned()),
             status: MacroStatus::Recording,
         };
         Ok(Self {
@@ -145,6 +148,10 @@ impl MacroState {
         fs::write(self.diff_file(), diff)?;
         self.metadata.status = MacroStatus::Recorded;
         Ok(())
+    }
+
+    pub fn set_name(&mut self, name: &str) {
+        self.metadata.name = Some(name.to_string())
     }
 
     pub fn flush(&self) -> Result<(), Error> {

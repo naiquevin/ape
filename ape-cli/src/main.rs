@@ -1,6 +1,6 @@
 use std::{path::PathBuf, process};
 
-use ape_core::{Config, execute_macro, list_macros, start_recording, stop_recording};
+use ape_core::{Config, execute_macro, list_macros, set_macro_name, start_recording, stop_recording};
 use clap::{Parser, Subcommand};
 use env_logger::WriteStyle;
 use log::LevelFilter;
@@ -47,6 +47,8 @@ enum Command {
         /// are git submodules inside a main repo.
         #[arg(long, help = "Explicitly specified repository root")]
         repo_path: Option<PathBuf>,
+        #[arg(long, help = "Specify name for the macro")]
+        name: Option<String>,
     },
     #[command(about = "Stop recording")]
     Stop {
@@ -65,6 +67,11 @@ enum Command {
         #[arg(long, help = "Filter recordings from this repo only")]
         repo_path: Option<PathBuf>,
     },
+    #[command(about = "Set name for a macro")]
+    SetName {
+        id: Uuid,
+        name: String,
+    }
 }
 
 #[derive(Parser)]
@@ -101,8 +108,9 @@ impl Cli {
             Some(Command::Start {
                 file_path,
                 repo_path,
+                name,
             }) => {
-                let id = start_recording(file_path, repo_path.as_deref())?;
+                let id = start_recording(file_path, repo_path.as_deref(), name.as_deref())?;
                 Ok(CliResponse::Success(json!({ "id": id  })))
             }
             Some(Command::Stop { id }) => {
@@ -122,6 +130,10 @@ impl Cli {
                 let ids = list_macros(repo_path.as_deref())?;
                 let resp = serde_json::to_value(ListResult { ids })?;
                 Ok(CliResponse::Success(resp))
+            }
+            Some(Command::SetName { id, name }) => {
+                let _ = set_macro_name(id, name)?;
+                Ok(CliResponse::default())
             }
             None => Err(Error::Cli("Please specify the command".to_string())),
         }

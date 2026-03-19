@@ -36,8 +36,8 @@ pub struct ProposedChange {
     pub diff_b64: String,
 }
 
-pub fn start_recording(file_path: &Path, repo_path: Option<&Path>) -> Result<Uuid, Error> {
-    let state = MacroState::new(file_path, repo_path)?;
+pub fn start_recording(file_path: &Path, repo_path: Option<&Path>, name: Option<&str>) -> Result<Uuid, Error> {
+    let state = MacroState::new(file_path, repo_path, name)?;
     state.flush()?;
     Ok(state.id)
 }
@@ -68,6 +68,13 @@ pub async fn execute_macro(
         diff_b64: STANDARD.encode(diff.as_bytes()),
     };
     Ok(change)
+}
+
+pub fn set_macro_name(id: &Uuid, name: &str) -> Result<(), Error> {
+    let mut state = MacroState::load(id)?;
+    state.set_name(name);
+    state.flush()?;
+    Ok(())
 }
 
 pub fn list_macros(repo_path: Option<&Path>) -> Result<Vec<Uuid>, Error> {
