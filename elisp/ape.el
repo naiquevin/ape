@@ -113,30 +113,33 @@
         (erase-buffer)
         (insert diff-text))
       (ape-diff-mode)
+      (setq-local ape-diff--context 'review)
+      (ape-diff--set-header 'review)
       (goto-char (point-min)))
     (pop-to-buffer buf)))
 
 (defun ape-apply-diff ()
   "Apply the diff in the current review buffer."
   (interactive)
-  (let ((diff-text (buffer-string))
-        (tmpfile (make-temp-file "ape-" nil ".patch")))
-    (let ((coding-system-for-write 'utf-8))
-      (write-region diff-text nil tmpfile))
-    (let ((result (call-process "patch"
-                                nil nil nil
-                                ape--target-file "-i" tmpfile)))
-      (delete-file tmpfile)
-      (if (zerop result)
-          (progn
-            (message "Diff applied successfully.")
-            (quit-window t)
-            ;; revert the target buffer if it's open
-            (when-let ((target-buffer (find-buffer-visiting ape--target-file)))
-              (with-current-buffer target-buffer
-                (revert-buffer t t t))))
-        (message "Failed to apply diff. Check *Messages* for details.")))))
-
+  (if (eq ape-diff--context 'review)
+      (let ((diff-text (buffer-string))
+            (tmpfile (make-temp-file "ape-" nil ".patch")))
+        (let ((coding-system-for-write 'utf-8))
+          (write-region diff-text nil tmpfile))
+        (let ((result (call-process "patch"
+                                    nil nil nil
+                                    ape--target-file "-i" tmpfile)))
+          (delete-file tmpfile)
+          (if (zerop result)
+              (progn
+                (message "Diff applied successfully.")
+                (quit-window t)
+                ;; revert the target buffer if it's open
+                (when-let ((target-buffer (find-buffer-visiting ape--target-file)))
+                  (with-current-buffer target-buffer
+                    (revert-buffer t t t))))
+            (message "Failed to apply diff. Check *Messages* for details."))))
+    (user-error "Diff cannot be applied in display context")))
 
 (defun ape-reject-diff ()
   "Reject the diff and close the review buffer."
@@ -217,14 +220,27 @@
 
 ;; Derived mode
 
+(defvar-local ape-diff--context nil
+  "Context for the diff buffer. Either `review` or `display`.")
+
+(defun ape-diff--set-header (context)
+  (let ((ctx (or context ape-diff--context)))
+    (ape--log 'debug "diff context = %s" ctx)
+    (setq header-line-format
+          (pcase ctx
+            ('review
+             (substitute-command-keys
+              "Review diff  \\[ape-apply-diff] Apply  \\[ape-reject-diff] Reject  \\[diff-hunk-next]/\\[diff-hunk-prev] Navigate hunks"))
+            ('display
+             (substitute-command-keys
+              "Macro diff \\[quit-window] Close  \\[diff-hunk-next]/\\[diff-hunk-prev] Navigate"))
+            (_
+             "APE diff")))))
+
 (define-derived-mode ape-diff-mode diff-mode "AI-Diff"
-  "Major mode for reviewing AI macro diffs.
-Inherits from `diff-mode'. Use \\[ape-apply-diff] to apply,
-\\[ape-reject-diff] to reject."
-  (setq buffer-read-only t)
-  (setq header-line-format
-        (substitute-command-keys
-         "AI Macro Diff  \\[ape-apply-diff] Apply  \\[ape-reject-diff] Reject  \\[diff-hunk-next]/\\[diff-hunk-prev] Navigate hunks")))
+  "Major mode for displaying or reviewing diffs.
+Inherits from `diff-mode'."
+  (setq buffer-read-only t))
 
 
 (define-key ape-diff-mode-map (kbd "a") #'ape-apply-diff)
