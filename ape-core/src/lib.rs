@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 pub use crate::config::Config;
 pub use crate::error::Error;
-use crate::state::{MacroState, list_recorded_macros};
+use crate::state::{MacroState, MacroStatus, list_recorded_macros};
 
 mod config;
 mod edit;
@@ -44,6 +44,10 @@ pub fn start_recording(file_path: &Path, repo_path: Option<&Path>, name: Option<
 
 pub fn stop_recording(id: &Uuid) -> Result<(), Error> {
     let mut state = MacroState::load(id)?;
+    let macro_status = state.macro_status();
+    if matches!(macro_status, MacroStatus::Recorded) {
+        return Err(Error::MacroAlreadyRecorded)
+    }
     let original = state.original_file_contents()?;
     let current = state.current_file_contents()?;
     let file_name = state.original_file_name();

@@ -9,6 +9,8 @@ pub enum Error {
     Io(#[from] io::Error),
     #[error("Macro not found: {0}")]
     MacroNotFound(Uuid),
+    #[error("Macro already recorded")]
+    MacroAlreadyRecorded,
     #[error("Invalid repo path: {0}")]
     InvalidRepoPath(PathBuf),
     #[error("Could not find repo for file path: {0}")]

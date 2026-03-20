@@ -11,7 +11,7 @@ use uuid::Uuid;
 use crate::{ape_dir, error::Error};
 
 #[derive(Serialize, Deserialize)]
-enum MacroStatus {
+pub enum MacroStatus {
     Recording,
     Recorded,
 }
@@ -142,6 +142,10 @@ impl MacroState {
 
     pub fn diff_file(&self) -> PathBuf {
         self.dir_path.join("changes.diff")
+    }
+
+    pub fn macro_status(&self) -> &MacroStatus {
+        &self.metadata.status
     }
 
     pub fn add_diff(&mut self, diff: String) -> Result<(), Error> {
