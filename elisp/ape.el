@@ -14,7 +14,7 @@
 
 ;;; State
 
-(defvar ape--recording-id nil
+(defvar ape--macro-id nil
   "Non-nil when recording is active.")
 
 (defvar ape--target-file nil
@@ -96,7 +96,7 @@
 (defun ape--modeline-rec-status ()
   "Update modeline for visual cue to indicate recording is in progress"
   (setq global-mode-string
-        (if ape--recording-id
+        (if ape--macro-id
             '(:eval (propertize " ⏺REC" 'face '(:foreground "red" :weight bold)))
           ""))
   (force-mode-line-update t))
@@ -150,7 +150,7 @@
 (defun ape-activate-macro ()
   "Make the macro corresponding to the displayed diff the current macro"
   (interactive)
-  (setq ape--recording-id ape-diff--displayed-macro-id)
+  (setq ape--macro-id ape-diff--displayed-macro-id)
   (quit-window t))
 
 ;;; Operations
@@ -160,21 +160,21 @@
   (ape--ensure-api-key)
   (condition-case err
       (let ((resp (ape--run-command "start" buffer-file-name)))
-        (setq ape--recording-id (alist-get 'id resp))
+        (setq ape--macro-id (alist-get 'id resp))
         (ape--modeline-rec-status)
         (message "APE recording started")
-        (ape--log 'error "Recording started: %s" ape--recording-id))
-    (error (message "Failed to start recording: %s - %s" ape--recording-id (cadr err)))))
+        (ape--log 'error "Recording started: %s" ape--macro-id))
+    (error (message "Failed to start recording: %s - %s" ape--macro-id (cadr err)))))
 
 (defun ape-stop-macro ()
   (interactive)
-  (if ape--recording-id
+  (if ape--macro-id
       (condition-case err
-          (let ((resp (ape--run-command "stop" ape--recording-id)))
+          (let ((resp (ape--run-command "stop" ape--macro-id)))
             (ape--modeline-rec-status)
             (message "APE recording stopped")
-            (ape--log 'error "Recording stopped: %s" ape--recording-id))
-        (error (message "Failed to stop recording: %s - %s" ape--recording-id (cadr err))))
+            (ape--log 'error "Recording stopped: %s" ape--macro-id))
+        (error (message "Failed to stop recording: %s - %s" ape--macro-id (cadr err))))
     (error (message "No APE macro recording has been started"))))
 
 (defun ape-execute (user-message)
@@ -184,12 +184,12 @@
      ;; Ensure API key is set
      (ape--ensure-api-key)
      ;; Ensure a macro is selected/activated
-     (when (null ape--recording-id)
-       (setq ape--recording-id (ape--select-macro)))
+     (when (null ape--macro-id)
+       (setq ape--macro-id (ape--select-macro)))
      (list (read-string "Instructions (optional): "))))
   (let* ((args (if (string-empty-p user-message)
-                   (list "execute" ape--recording-id buffer-file-name)
-                 (list "execute" "--user-msg" user-message ape--recording-id buffer-file-name)))
+                   (list "execute" ape--macro-id buffer-file-name)
+                 (list "execute" "--user-msg" user-message ape--macro-id buffer-file-name)))
          (stderr-file (make-temp-file "ape-stderr-"))
          (stdout-buf (generate-new-buffer " *ape-stdout*"))
          (cmd (mapconcat #'shell-quote-argument
