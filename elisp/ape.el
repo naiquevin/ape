@@ -147,6 +147,12 @@
   (setq ape--target-file nil)
   (quit-window t))
 
+(defun ape-activate-macro ()
+  "Make the macro corresponding to the displayed diff the current macro"
+  (interactive)
+  (setq ape--recording-id ape-diff--displayed-macro-id)
+  (quit-window t))
+
 ;;; Operations
 
 (defun ape-start-macro ()
@@ -218,10 +224,50 @@
          (delete-file stderr-file))))))
 
 
+(defun ape-view-macro ()
+  "View the macro selected by user from completion prompt."
+  (interactive)
+  (ape--ensure-api-key)
+  (condition-case err
+      (let* ((resp (ape--run-command "list"))
+             (choices (mapcar
+                       (lambda (m)
+                         (let ((id (alist-get 'id m))
+                               (name (alist-get 'name m)))
+                           (if name
+                               (cons name id)
+                             (cons (concat id " "
+                                           (file-name-nondirectory (alist-get 'file_path m))
+                                           "<" (file-name-nondirectory (alist-get 'repo_path m)) ">")
+                                   id))))
+                       (alist-get 'macros resp)))
+             (selected (completing-read "Select: " choices nil t))
+             (selected-id (cdr (assoc selected choices)))
+             (changes-file (expand-file-name (file-name-concat "~/.ape" selected-id "changes.diff"))))
+        (let ((buf (get-buffer-create "*APE macro*")))
+          (with-current-buffer buf
+            (let ((inhibit-read-only t)
+                  (diff-text (with-temp-buffer
+                               (insert-file-contents changes-file)
+                               (buffer-string))))
+              (erase-buffer)
+              (insert diff-text))
+            (ape-diff-mode)
+            (setq-local ape-diff--context 'display)
+            (setq-local ape-diff--displayed-macro-id selected-id)
+            (ape-diff--set-header 'display)
+            (goto-char (point-min)))
+          (pop-to-buffer buf)))
+    (error (message "Failed to list APE macros: %s" (cadr err)))))
+
+
 ;; Derived mode
 
 (defvar-local ape-diff--context nil
   "Context for the diff buffer. Either `review` or `display`.")
+
+(defvar-local ape-diff--displayed-macro-id nil
+  "Macro/recording id that's displayed in the ape-diff buffer")
 
 (defun ape-diff--set-header (context)
   (let ((ctx (or context ape-diff--context)))
@@ -233,7 +279,7 @@
               "Review diff  \\[ape-apply-diff] Apply  \\[ape-reject-diff] Reject  \\[diff-hunk-next]/\\[diff-hunk-prev] Navigate hunks"))
             ('display
              (substitute-command-keys
-              "Macro diff \\[quit-window] Close  \\[diff-hunk-next]/\\[diff-hunk-prev] Navigate"))
+              "Macro diff \\[ape-activate-macro] Select current  \\[quit-window] Close  \\[diff-hunk-next]/\\[diff-hunk-prev] Navigate"))
             (_
              "APE diff")))))
 
@@ -246,6 +292,7 @@ Inherits from `diff-mode'."
 (define-key ape-diff-mode-map (kbd "a") #'ape-apply-diff)
 (define-key ape-diff-mode-map (kbd "r") #'ape-reject-diff)
 (define-key ape-diff-mode-map (kbd "q") #'ape-reject-diff)
+(define-key ape-diff-mode-map (kbd "c") #'ape-activate-macro)
 
 ;;; Global minor mode (for keybindings)
 
@@ -254,6 +301,7 @@ Inherits from `diff-mode'."
     (define-key map (kbd "C-c x (") #'ape-start-macro)
     (define-key map (kbd "C-c x )") #'ape-stop-macro)
     (define-key map (kbd "C-c x e") #'ape-execute)
+    (define-key map (kbd "C-c x v") #'ape-view-macro)
     map)
   "Keymap for `ape-mode'.")
 
