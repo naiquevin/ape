@@ -176,7 +176,15 @@
     (error (message "Failed to stop recording: %s - %s" ape--recording-id (cadr err)))))
 
 (defun ape-execute (user-message)
-  (interactive (list (read-string "Instructions (optional): ")))
+  "Execute the macro"
+  (interactive
+   (progn
+     ;; Ensure API key is set
+     (ape--ensure-api-key)
+     ;; Ensure a macro is selected/activated
+     (when (null ape--recording-id)
+       (setq ape--recording-id (ape--select-macro)))
+     (list (read-string "Instructions (optional): "))))
   (let* ((args (if (string-empty-p user-message)
                    (list "execute" ape--recording-id buffer-file-name)
                  (list "execute" "--user-msg" user-message ape--recording-id buffer-file-name)))
@@ -223,10 +231,8 @@
          (kill-buffer (process-buffer proc))
          (delete-file stderr-file))))))
 
-
-(defun ape-view-macro ()
-  "View the macro selected by user from completion prompt."
-  (interactive)
+(defun ape--select-macro ()
+  "Allow user to select a macro from a list (completion prompt"
   (ape--ensure-api-key)
   (condition-case err
       (let* ((resp (ape--run-command "list"))
@@ -242,7 +248,16 @@
                                    id))))
                        (alist-get 'macros resp)))
              (selected (completing-read "Select: " choices nil t))
-             (selected-id (cdr (assoc selected choices)))
+             (selected-id (cdr (assoc selected choices))))
+        selected-id)
+    (error (message "Failed to list APE macros: %s" (cadr err)))))
+
+
+(defun ape-view-macro ()
+  "View the macro selected by user from completion prompt."
+  (interactive)
+  (condition-case err
+      (let* ((selected-id (ape--select-macro))
              (changes-file (expand-file-name (file-name-concat "~/.ape" selected-id "changes.diff"))))
         (let ((buf (get-buffer-create "*APE macro*")))
           (with-current-buffer buf
@@ -258,7 +273,7 @@
             (ape-diff--set-header 'display)
             (goto-char (point-min)))
           (pop-to-buffer buf)))
-    (error (message "Failed to list APE macros: %s" (cadr err)))))
+    (error (message "Failed to display APE macro: %s" (cadr err)))))
 
 
 ;; Derived mode
