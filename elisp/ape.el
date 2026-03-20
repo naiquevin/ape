@@ -168,12 +168,14 @@
 
 (defun ape-stop-macro ()
   (interactive)
-  (condition-case err
-      (let ((resp (ape--run-command "stop" ape--recording-id)))
-        (ape--modeline-rec-status)
-        (message "APE recording stopped")
-        (ape--log 'error "Recording stopped: %s" ape--recording-id))
-    (error (message "Failed to stop recording: %s - %s" ape--recording-id (cadr err)))))
+  (if ape--recording-id
+      (condition-case err
+          (let ((resp (ape--run-command "stop" ape--recording-id)))
+            (ape--modeline-rec-status)
+            (message "APE recording stopped")
+            (ape--log 'error "Recording stopped: %s" ape--recording-id))
+        (error (message "Failed to stop recording: %s - %s" ape--recording-id (cadr err))))
+    (error (message "No APE macro recording has been started"))))
 
 (defun ape-execute (user-message)
   "Execute the macro"
