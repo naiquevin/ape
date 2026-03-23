@@ -14,8 +14,13 @@
 
 ;;; State
 
+(defvar ape--rec-in-progress nil
+  "Non-nil when recording is started and nil again when stopped. Value is
+the macro id being recorded.")
+
 (defvar ape--macro-id nil
-  "Non-nil when recording is active.")
+  "Currently active macro. Non-nil when one is recorded or an existing one
+is set to active")
 
 (defvar ape--target-file nil
   "Non-nil when execute is called")
@@ -24,7 +29,7 @@
 ;;; Cache
 
 (defvar ape--provider nil
-  "Non-nil when provider is loaded once")
+  "Non-nil when provider is loaded for the first time (think of it as cache")
 
 
 ;;; Logging
@@ -96,7 +101,7 @@
 (defun ape--modeline-rec-status ()
   "Update modeline for visual cue to indicate recording is in progress"
   (setq global-mode-string
-        (if ape--macro-id
+        (if ape--rec-in-progress
             '(:eval (propertize " ⏺REC" 'face '(:foreground "red" :weight bold)))
           ""))
   (force-mode-line-update t))
@@ -158,24 +163,41 @@
 (defun ape-start-macro ()
   (interactive)
   (ape--ensure-api-key)
-  (condition-case err
-      (let ((resp (ape--run-command "start" buffer-file-name)))
-        (setq ape--macro-id (alist-get 'id resp))
-        (ape--modeline-rec-status)
-        (message "APE recording started")
-        (ape--log 'error "Recording started: %s" ape--macro-id))
-    (error (message "Failed to start recording: %s - %s" ape--macro-id (cadr err)))))
+  (if ape--rec-in-progress
+      (error (message "Already recording an APE macro. Stop or discard it first."))
+      (condition-case err
+          (let ((resp (ape--run-command "start" buffer-file-name)))
+            (setq ape--rec-in-progress (alist-get 'id resp))
+            (ape--modeline-rec-status)
+            (message "APE recording started")
+            (ape--log 'info "Recording started: %s" ape--macro-id))
+        (error (message "Failed to start recording: %s - %s" ape--macro-id (cadr err))))))
 
 (defun ape-stop-macro ()
   (interactive)
-  (if ape--macro-id
+  (if ape--rec-in-progress
       (condition-case err
-          (let ((resp (ape--run-command "stop" ape--macro-id)))
-            (ape--modeline-rec-status)
+          (let ((resp (ape--run-command "stop" ape--rec-in-progress)))
+            (setq ape--macro-id ape--rec-in-progress)
             (message "APE recording stopped")
-            (ape--log 'error "Recording stopped: %s" ape--macro-id))
-        (error (message "Failed to stop recording: %s - %s" ape--macro-id (cadr err))))
+            (ape--log 'info "Recording stopped: %s" ape--rec-in-progress)
+            (setq ape--rec-in-progress nil)
+            (ape--modeline-rec-status))
+        (error (message "Failed to stop recording: %s - %s" ape--rec-in-progress (cadr err))))
     (error (message "No APE macro recording has been started"))))
+
+(defun ape-cancel-macro ()
+  (interactive)
+  (if ape--rec-in-progress
+      (if (y-or-n-p "Discard APE macro recording?")
+          (progn
+            (message "Cancelling APE macro recording: %s." ape--rec-in-progress)
+            (ape--run-command "cancel" ape--rec-in-progress)
+            (ape--log 'info "Recording cancelled: %s" ape--rec-in-progress)
+            (setq ape--rec-in-progress nil)
+            (ape--modeline-rec-status))
+        (message "No changes were made."))
+    (message "No APE macro recording in progress.")))
 
 (defun ape-execute (user-message)
   "Execute the macro"
@@ -254,7 +276,6 @@
         selected-id)
     (error (message "Failed to list APE macros: %s" (cadr err)))))
 
-
 (defun ape-view-macro ()
   "View the macro selected by user from completion prompt."
   (interactive)
@@ -277,6 +298,7 @@
           (pop-to-buffer buf)))
     (error (message "Failed to display APE macro: %s" (cadr err)))))
 
+;; TODO: Add function ape-rename-macro to rename the macro
 
 ;; Derived mode
 
@@ -317,6 +339,7 @@ Inherits from `diff-mode'."
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "C-c x (") #'ape-start-macro)
     (define-key map (kbd "C-c x )") #'ape-stop-macro)
+    (define-key map (kbd "C-c x k") #'ape-cancel-macro)
     (define-key map (kbd "C-c x e") #'ape-execute)
     (define-key map (kbd "C-c x v") #'ape-view-macro)
     map)

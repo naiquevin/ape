@@ -5,6 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use log::{info, warn};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -160,6 +161,21 @@ impl MacroState {
 
     pub fn set_name(&mut self, name: &str) {
         self.metadata.name = Some(name.to_string())
+    }
+
+    pub fn delete(self) {
+        match self.dir_path.try_exists() {
+            Ok(true) => {
+                info!("Removing APE macro state: {}", self.id);
+                fs::remove_dir_all(&self.dir_path).unwrap()
+            },
+            Ok(false) => {
+                warn!("APE macro state dir doesn't exist: {}", self.dir_path.display());
+            },
+            Err(_) => {
+                warn!("Couldn't check existence of dir: {}", self.dir_path.display())
+            },
+        }
     }
 
     pub fn flush(&self) -> Result<(), Error> {

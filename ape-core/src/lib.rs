@@ -61,6 +61,16 @@ pub fn stop_recording(id: &Uuid) -> Result<(), Error> {
     Ok(())
 }
 
+pub fn cancel_recording(id: &Uuid) -> Result<(), Error> {
+    let state = MacroState::load(id)?;
+    let macro_status = state.macro_status();
+    if matches!(macro_status, MacroStatus::Recorded) {
+        return Err(Error::MacroAlreadyRecorded);
+    }
+    state.delete();
+    Ok(())
+}
+
 pub async fn execute_macro(
     config: &Config,
     id: &Uuid,

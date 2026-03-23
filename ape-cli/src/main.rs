@@ -1,8 +1,7 @@
 use std::{path::PathBuf, process};
 
 use ape_core::{
-    Config, RecordedMacro, execute_macro, list_macros, set_macro_name, start_recording,
-    stop_recording,
+    Config, RecordedMacro, cancel_recording, execute_macro, list_macros, set_macro_name, start_recording, stop_recording
 };
 use clap::{Parser, Subcommand};
 use env_logger::WriteStyle;
@@ -55,7 +54,12 @@ enum Command {
     },
     #[command(about = "Stop recording")]
     Stop {
-        /// Macro id that was returned by the stop command
+        /// Macro id that was returned by the start command
+        id: Uuid,
+    },
+    #[command(about = "Cancel recording")]
+    Cancel {
+        /// Macro id that was returned by the start command
         id: Uuid,
     },
     Execute {
@@ -115,6 +119,10 @@ impl Cli {
             }
             Some(Command::Stop { id }) => {
                 stop_recording(id)?;
+                Ok(CliResponse::default())
+            }
+            Some(Command::Cancel { id }) => {
+                cancel_recording(id)?;
                 Ok(CliResponse::default())
             }
             Some(Command::Execute {
