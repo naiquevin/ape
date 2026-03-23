@@ -25,6 +25,10 @@ pub enum Error {
     Config(String),
     #[error("Credential not set in env var: {0}")]
     Credential(String),
+    #[error("LLM Http response failed: [{0}] {1}")]
+    LLMResponse(u16, String),
     #[error("Failed to obtain LLM response in expected format")]
-    LLMResponse,
+    LLMResponseFormat,
+    #[error("Reqwest error: {0}")]
+    Reqwest(#[from] reqwest::Error),
 }
