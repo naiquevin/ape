@@ -1,4 +1,91 @@
-;; ape.el --- Kbd macro like functionality but AI-assisted
+;; ape-mode.el --- Kbd macro like functionality but AI-assisted
+
+;; Copyright (c) 2026 Vineet Naik <naikvin@gmail.com>
+;; Author: Vineet Naik <naikvin@gmail.com>
+;; URL: https://github.com/naiquevin/ape
+;; Version: 0.1.0
+;; Keywords: Kbd macros AI LLM
+
+;; This program is *not* a part of emacs and is provided under the MIT
+;; License (MIT) <http://opensource.org/licenses/MIT>
+;;
+;; Copyright (c) 2026 Vineet Naik <naikvin@gmail.com>
+;;
+;; Permission is hereby granted, free of charge, to any person
+;; obtaining a copy of this software and associated documentation
+;; files (the "Software"), to deal in the Software without
+;; restriction, including without limitation the rights to use, copy,
+;; modify, merge, publish, distribute, sublicense, and/or sell copies
+;; of the Software, and to permit persons to whom the Software is
+;; furnished to do so, subject to the following conditions:
+;;
+;; The above copyright notice and this permission notice shall be
+;; included in all copies or substantial portions of the Software.
+;;
+;; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+;; EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+;; MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+;; NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+;; BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+;; ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+;; CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+;; SOFTWARE.
+
+;;; Commentary:
+;;
+;; Ape provides kbd-macro-like functionality but driven by AI. It's
+;; useful for those cases where it's tedious to explain a change to
+;; an LLM in plain english, whereas it's much easier to "show" an
+;; example change and ask it to repeat it multiple times.
+;;
+;; Dependencies:
+;;
+;; This mode depends on the ape-cli command line tool. It's a hard
+;; dependency as it does most of the heavy lifting, whereas the minor
+;; mode is merely a thin wrapper to integrate with emacs. The CLI
+;; tool is written in rust and can be built from source using cargo.
+;;
+;; Installation:
+;;
+;; 1. First build the ape-cli tool and copy it to a dir in `$PATH'
+;;
+;;      git clone git@github.com:naiquevin/ape.git
+;;      cd ape
+;;      cargo build -p ape-cli --release
+;;      cp target/release/ape-cli ~/.local/bin/
+;;
+;; 2. Require the `elisp/ape-mode.el' file in your emacs config.
+;;
+;;    If you use `use-package`, you may add the following lines to your
+;;    emacs config:
+;;
+;;      (use-package ape-mode
+;;        :ensure nil
+;;        :load-path "</path/to/ape-mode.el>"
+;;        :init
+;;        (ape-mode 1))
+;;
+;; Usage:
+;;
+;; It's a minor mode and works as follows:
+;;
+;;   1. User starts an APE macro recording with `C-c x (' (or M-x
+;;   ape-start-macro)
+;;
+;;   2. User makes a change in the file
+;;
+;;   3. User stop the macro recording with `C-c x )' (or M-x
+;;   ape-stop-macro)
+;;
+;;   4. User can now ask LLM to repeat the change with `C-c x e' (or
+;;   M-x ape-execute). The diff obtained from LLM response is
+;;   displayed in a buffer that derives from diff-mode, from where the
+;;   user may accept or reject the change.
+;;
+;; Other functions provided by the mode: `ape-cancel-macro',
+;; `ape-view-macro' etc. (See README.md for more details).
+
+;;; Code:
 
 (require 'json)
 
@@ -6,8 +93,8 @@
   "AI-assisted editing macros."
   :group 'tools)
 
-(defcustom ape-cli-command "/home/vineet/code/ape/target/debug/ape-cli"
-  "Path to the AI macro CLI command."
+(defcustom ape-cli-command "ape-cli"
+  "Path to the APE CLI command."
   :type 'string
   :group 'ape)
 
@@ -46,7 +133,7 @@ is set to active")
       (insert (format "[%s] [%s] %s\n" timestamp (upcase (symbol-name level)) msg)))))
 
 (defun ape-show-log ()
-  "Open the AI macro log buffer."
+  "Open the APE log buffer."
   (interactive)
   (pop-to-buffer ape--log-buffer-name))
 
@@ -91,7 +178,7 @@ is set to active")
               (json-parse-string stdout :object-type 'alist)
             (json-parse-error
              (ape--log 'error "Invalid JSON from CLI: %s" stdout)
-             (error "AI macro CLI returned malformed JSON")))
+             (error "APE CLI returned malformed JSON")))
         (ape--log 'error "CLI failed (exit %d): %s" exit-code stderr)
         (error "%s" (string-trim stderr))))))
 
@@ -229,7 +316,7 @@ is set to active")
     (process-put proc :stderr-file stderr-file)
     (process-put proc :target-file buffer-file-name)
     (ape--log 'info "Executing with message: %S" user-message)
-    (message "AI macro running...")
+    (message "APE macro running...")
     (set-process-sentinel
      proc
      (lambda (proc event)
@@ -246,12 +333,12 @@ is set to active")
                        (ape--show-diff diff (process-get proc :target-file))))
                  (json-parse-error
                   (ape--log 'error "Invalid JSON: %s" (buffer-string))
-                  (message "AI macro error: malformed response"))))
+                  (message "APE error: malformed response"))))
            (let ((stderr (with-temp-buffer
                            (insert-file-contents stderr-file)
                            (buffer-string))))
              (ape--log 'error "CLI failed (exit %d): %s" exit-code stderr)
-             (message "AI macro failed: %s" (string-trim stderr))))
+             (message "APE command failed: %s" (string-trim stderr))))
          (kill-buffer (process-buffer proc))
          (delete-file stderr-file))))))
 
@@ -345,10 +432,12 @@ Inherits from `diff-mode'."
     map)
   "Keymap for `ape-mode'.")
 
+;;;###autoload
 (define-minor-mode ape-mode
   "Minor mode for AI-assisted macro recording."
   :lighter " Ape"
   :keymap ape-mode-map
   :global t)
+
 
 (provide 'ape-mode)
