@@ -14,12 +14,15 @@ pub enum Provider {
 }
 
 /// Supported models
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Default, Clone, Deserialize, Serialize)]
 pub enum Model {
     #[serde(rename = "gpt-5-nano")]
     Gpt5Nano,
     #[serde(rename = "gpt-5-mini")]
+    #[default]
     Gpt5Mini,
+    #[serde(rename = "gpt-5.4")]
+    Gpt5_4,
     #[serde(rename = "claude-haiku-4-5")]
     Haiku4_5,
     #[serde(rename = "claude-sonnet-4-6")]
@@ -39,7 +42,7 @@ impl std::fmt::Display for Model {
 impl Model {
     pub fn provider(&self) -> Provider {
         match &self {
-            Self::Gpt5Nano | Self::Gpt5Mini => Provider::OpenAI,
+            Self::Gpt5Nano | Self::Gpt5Mini | Self::Gpt5_4 => Provider::OpenAI,
             Self::Haiku4_5 | Self::Sonnet4_6 | Self::Opus4_6 => Provider::Claude,
         }
     }

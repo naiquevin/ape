@@ -1,19 +1,34 @@
-use std::{env::VarError, fs};
+use std::{
+    env::VarError,
+    fs::{self, File},
+    io::Write,
+};
 
+use log::info;
 use secret_string::SecretString;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     Error, ape_dir,
     llm::{Model, Provider},
 };
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 struct Settings {
     provider: Provider,
     // @TODO: Validation model against provider as part of
     // deserialization
     model: Model,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        let model = Model::default();
+        Self {
+            provider: model.provider(),
+            model,
+        }
+    }
 }
 
 struct Credentials {
@@ -32,14 +47,26 @@ pub struct Config {
 impl Config {
     pub fn load() -> Result<Self, Error> {
         let config_file = ape_dir().join("config.json");
-        match fs::exists(&config_file) {
-            Ok(true) => {}
-            Ok(false) => return Err(Error::NotConfigured),
+        let settings = match fs::exists(&config_file) {
+            Ok(true) => {
+                let json =
+                    fs::read_to_string(config_file).map_err(|e| Error::Config(e.to_string()))?;
+                serde_json::from_str(&json).map_err(|e| Error::Config(e.to_string()))?
+            }
+            Ok(false) => {
+                // If the file doesn't exist, create it with default settings
+                info!(
+                    "Creating config file with defaults at {}",
+                    config_file.display()
+                );
+                let settings = Settings::default();
+                let json = serde_json::to_string_pretty(&settings)?;
+                let mut file = File::create(&config_file)?;
+                file.write_all(json.as_bytes())?;
+                settings
+            }
             Err(e) => return Err(Error::Config(e.to_string())),
         };
-        let json = fs::read_to_string(config_file).map_err(|e| Error::Config(e.to_string()))?;
-        let settings: Settings =
-            serde_json::from_str(&json).map_err(|e| Error::Config(e.to_string()))?;
         let api_key_var = match &settings.provider {
             Provider::OpenAI => "OPENAI_API_KEY",
             Provider::Claude => "ANTHROPIC_API_KEY",
