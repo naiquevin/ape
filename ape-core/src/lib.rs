@@ -54,6 +54,9 @@ pub fn stop_recording(id: &Uuid) -> Result<(), Error> {
     }
     let original = state.original_file_contents()?;
     let current = state.current_file_contents()?;
+    if original == current {
+        return Err(Error::NoChanges);
+    }
     let file_name = state.original_file_name();
     let diff = generate_diff(&original, &current, &file_name, &file_name);
     state.add_diff(diff)?;
