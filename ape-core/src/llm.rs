@@ -1,14 +1,5 @@
 use std::{fs, io, path::Path};
 
-use async_openai::{
-    Client,
-    config::OpenAIConfig,
-    types::responses::{
-        AssistantRole, CreateResponseArgs, EasyInputContent, EasyInputMessage, InputItem,
-        InputParam, MessageType, OutputItem, OutputMessageContent, OutputStatus, Role,
-    },
-};
-use secret_string::SecretString;
 use serde::{Deserialize, Serialize};
 
 use crate::{Error, config::Config, edit::Edit};
@@ -109,60 +100,6 @@ fn clean_json(s: &str) -> &str {
         .trim()
 }
 
-// #[derive(Deserialize)]
-// pub struct DiffResponse {
-//     pub diff: String,
-// }
-
-async fn send_openai(
-    model: &Model,
-    api_key: &SecretString<String>,
-    prompt: Prompt,
-) -> Result<Edit, Error> {
-    let config = OpenAIConfig::new().with_api_key(api_key.value());
-    let client = Client::with_config(config);
-    let request = CreateResponseArgs::default()
-        .model(model.to_string())
-        .input(InputParam::Items(vec![
-            InputItem::EasyMessage(EasyInputMessage {
-                r#type: MessageType::Message,
-                role: Role::System,
-                content: EasyInputContent::Text(prompt.system),
-            }),
-            InputItem::EasyMessage(EasyInputMessage {
-                r#type: MessageType::Message,
-                role: Role::User,
-                content: EasyInputContent::Text(prompt.user),
-            }),
-        ]))
-        .build()?;
-
-    let response = client.responses().create(request).await?;
-
-    let mut llm_response: Option<Edit> = None;
-
-    for output in response.output {
-        if let OutputItem::Message(output_message) = output
-            && let (AssistantRole::Assistant, OutputStatus::Completed) =
-                (output_message.role, output_message.status)
-        {
-            if output_message.content.len() == 1 {
-                if let OutputMessageContent::OutputText(output_text) = &output_message.content[0] {
-                    let cleaned_text = clean_json(&output_text.text);
-                    llm_response = serde_json::from_str(cleaned_text)?;
-                }
-            } else {
-                println!(
-                    "Multiple content objects received in response: {:?}",
-                    output_message.content
-                );
-            }
-        }
-    }
-
-    llm_response.ok_or(Error::LLMResponse)
-}
-
 pub async fn send(
     config: &Config,
     curr_file: &Path,
@@ -171,7 +108,74 @@ pub async fn send(
 ) -> Result<Edit, Error> {
     let prompt = make_prompt(curr_file, diff_file, user_message)?;
     match config.provider() {
-        Provider::OpenAI => send_openai(config.model(), config.api_key(), prompt).await,
+        Provider::OpenAI => openai::send_message(config.model(), config.api_key(), prompt).await,
         Provider::Claude => unimplemented!(),
+    }
+}
+
+mod openai {
+    use async_openai::{
+        Client,
+        config::OpenAIConfig,
+        types::responses::{
+            AssistantRole, CreateResponseArgs, EasyInputContent, EasyInputMessage, InputItem,
+            InputParam, MessageType, OutputItem, OutputMessageContent, OutputStatus, Role,
+        },
+    };
+    use secret_string::SecretString;
+
+    use crate::{Error, edit::Edit};
+
+    use super::{Model, Prompt, clean_json};
+
+    pub async fn send_message(
+        model: &Model,
+        api_key: &SecretString<String>,
+        prompt: Prompt,
+    ) -> Result<Edit, Error> {
+        let config = OpenAIConfig::new().with_api_key(api_key.value());
+        let client = Client::with_config(config);
+        let request = CreateResponseArgs::default()
+            .model(model.to_string())
+            .input(InputParam::Items(vec![
+                InputItem::EasyMessage(EasyInputMessage {
+                    r#type: MessageType::Message,
+                    role: Role::System,
+                    content: EasyInputContent::Text(prompt.system),
+                }),
+                InputItem::EasyMessage(EasyInputMessage {
+                    r#type: MessageType::Message,
+                    role: Role::User,
+                    content: EasyInputContent::Text(prompt.user),
+                }),
+            ]))
+            .build()?;
+
+        let response = client.responses().create(request).await?;
+
+        let mut llm_response: Option<Edit> = None;
+
+        for output in response.output {
+            if let OutputItem::Message(output_message) = output
+                && let (AssistantRole::Assistant, OutputStatus::Completed) =
+                    (output_message.role, output_message.status)
+            {
+                if output_message.content.len() == 1 {
+                    if let OutputMessageContent::OutputText(output_text) =
+                        &output_message.content[0]
+                    {
+                        let cleaned_text = clean_json(&output_text.text);
+                        llm_response = serde_json::from_str(cleaned_text)?;
+                    }
+                } else {
+                    println!(
+                        "Multiple content objects received in response: {:?}",
+                        output_message.content
+                    );
+                }
+            }
+        }
+
+        llm_response.ok_or(Error::LLMResponse)
     }
 }
