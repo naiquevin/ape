@@ -31,4 +31,6 @@ pub enum Error {
     LLMResponseFormat,
     #[error("Reqwest error: {0}")]
     Reqwest(#[from] reqwest::Error),
+    #[error("Git command failed: {0}")]
+    Git(String),
 }

@@ -1,7 +1,8 @@
 use std::{path::PathBuf, process};
 
 use ape_core::{
-    Config, RecordedMacro, cancel_recording, execute_macro, list_macros, set_macro_name, start_recording, stop_recording
+    Config, RecordedMacro, cancel_recording, create_macro, execute_macro, list_macros,
+    set_macro_name, start_recording, stop_recording,
 };
 use clap::{Parser, Subcommand};
 use env_logger::WriteStyle;
@@ -61,6 +62,29 @@ enum Command {
     Cancel {
         /// Macro id that was returned by the start command
         id: Uuid,
+    },
+    #[command(about = "Create a macro from git diff")]
+    Create {
+        /// Path to the file in which changes are to be
+        /// considered. Must be an absolute path
+        file_path: PathBuf,
+        /// Explicitly specified repository root
+        ///
+        /// In most cases, the repository root can be inferred from
+        /// the file path. But in certain cases it's not possible so
+        /// it helps to have it optionally specified for e.g. when
+        /// working with files outside a git repository or when there
+        /// are git submodules inside a main repo.
+        #[arg(long, help = "Explicitly specified repository root")]
+        repo_path: Option<PathBuf>,
+        #[arg(long, help = "Specify name for the macro")]
+        name: Option<String>,
+        #[arg(
+            long,
+            default_value_t = false,
+            help = "Consider staged changed for diff"
+        )]
+        staged: bool,
     },
     Execute {
         /// Macro id that was returned by the stop command
@@ -124,6 +148,15 @@ impl Cli {
             Some(Command::Cancel { id }) => {
                 cancel_recording(id)?;
                 Ok(CliResponse::default())
+            }
+            Some(Command::Create {
+                file_path,
+                repo_path,
+                staged,
+                name,
+            }) => {
+                let id = create_macro(file_path, repo_path.as_deref(), name.as_deref(), *staged)?;
+                Ok(CliResponse::Success(json!({ "id": id  })))
             }
             Some(Command::Execute {
                 id,

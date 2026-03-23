@@ -12,6 +12,7 @@ use crate::state::{MacroState, MacroStatus, list_recorded_macros};
 mod config;
 mod edit;
 mod error;
+mod git;
 mod llm;
 mod state;
 
@@ -72,6 +73,18 @@ pub fn cancel_recording(id: &Uuid) -> Result<(), Error> {
     }
     state.delete();
     Ok(())
+}
+
+/// Creates a macro from the git diff
+pub fn create_macro(
+    file_path: &Path,
+    repo_path: Option<&Path>,
+    name: Option<&str>,
+    staged: bool,
+) -> Result<Uuid, Error> {
+    let state = MacroState::new_from_git_diff(file_path, repo_path, name, staged)?;
+    state.flush()?;
+    Ok(state.id)
 }
 
 pub async fn execute_macro(

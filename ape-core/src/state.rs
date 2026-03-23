@@ -9,7 +9,11 @@ use log::{info, warn};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{ape_dir, error::Error};
+use crate::{
+    ape_dir,
+    error::Error,
+    git::{find_git_root, git_diff},
+};
 
 #[derive(Serialize, Deserialize)]
 pub enum MacroStatus {
@@ -34,25 +38,6 @@ impl MacroMetadata {
 
 fn state_dir_path(id: &Uuid) -> PathBuf {
     ape_dir().join(id.to_string())
-}
-
-fn find_git_root(file_path: &Path) -> Option<PathBuf> {
-    let mut current_path = file_path.canonicalize().ok()?;
-    // If it's a file, start with its parent directory
-    if current_path.is_file() {
-        current_path.pop();
-    }
-    loop {
-        let git_dir = current_path.join(".git");
-        if fs::metadata(&git_dir).is_ok() {
-            return Some(current_path);
-        }
-        // Move up to the parent directory
-        if !current_path.pop() {
-            break; // Reached root, no .git found
-        }
-    }
-    None
 }
 
 pub struct MacroState {
@@ -93,6 +78,54 @@ impl MacroState {
             repo_path,
             name: name.map(|s| s.to_owned()),
             status: MacroStatus::Recording,
+        };
+        Ok(Self {
+            id,
+            dir_path,
+            metadata,
+        })
+    }
+
+    pub fn new_from_git_diff(
+        file_path: &Path,
+        opt_repo_path: Option<&Path>,
+        name: Option<&str>,
+        staged: bool,
+    ) -> Result<Self, Error> {
+        let repo_path = match opt_repo_path {
+            Some(p) => {
+                if !file_path.starts_with(p) {
+                    return Err(Error::InvalidRepoPath(p.to_path_buf()));
+                }
+                p.to_path_buf()
+            }
+            None => find_git_root(file_path).ok_or(Error::RepoNotFound(file_path.to_path_buf()))?,
+        };
+
+        // Obtain the diff first, so that if it fails, no macro id is
+        // generated.
+        let diff = git_diff(file_path, &repo_path, staged)?;
+
+        if diff.is_empty() {
+            return Err(Error::NoChanges);
+        }
+
+        // Generate an id
+        let id = Uuid::new_v4();
+
+        // Create the directory
+        let dir_path = state_dir_path(&id);
+        fs::create_dir_all(&dir_path)?;
+
+        // Create the diff file
+        let diff_file = dir_path.join("changes.diff");
+        fs::write(diff_file, diff)?;
+
+        let metadata = MacroMetadata {
+            file_path: file_path.to_path_buf(),
+            repo_path,
+            name: name.map(|s| s.to_owned()),
+            status: MacroStatus::Recorded,
         };
         Ok(Self {
             id,
@@ -168,13 +201,19 @@ impl MacroState {
             Ok(true) => {
                 info!("Removing APE macro state: {}", self.id);
                 fs::remove_dir_all(&self.dir_path).unwrap()
-            },
+            }
             Ok(false) => {
-                warn!("APE macro state dir doesn't exist: {}", self.dir_path.display());
-            },
+                warn!(
+                    "APE macro state dir doesn't exist: {}",
+                    self.dir_path.display()
+                );
+            }
             Err(_) => {
-                warn!("Couldn't check existence of dir: {}", self.dir_path.display())
-            },
+                warn!(
+                    "Couldn't check existence of dir: {}",
+                    self.dir_path.display()
+                )
+            }
         }
     }
 
