@@ -61,7 +61,11 @@ pub struct MacroState {
 }
 
 impl MacroState {
-    pub fn new(file_path: &Path, opt_repo_path: Option<&Path>, name: Option<&str>) -> Result<Self, Error> {
+    pub fn new(
+        file_path: &Path,
+        opt_repo_path: Option<&Path>,
+        name: Option<&str>,
+    ) -> Result<Self, Error> {
         let repo_path = match opt_repo_path {
             Some(p) => {
                 if !file_path.starts_with(p) {
@@ -167,7 +171,9 @@ impl MacroState {
     }
 }
 
-pub fn list_recorded_macros(repo_path: Option<&Path>) -> Result<Vec<(Uuid, MacroMetadata)>, io::Error> {
+pub fn list_recorded_macros(
+    repo_path: Option<&Path>,
+) -> Result<Vec<(Uuid, MacroMetadata)>, io::Error> {
     let mut result = Vec::new();
 
     for entry in fs::read_dir(ape_dir())? {

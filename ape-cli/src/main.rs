@@ -1,6 +1,9 @@
 use std::{path::PathBuf, process};
 
-use ape_core::{Config, RecordedMacro, execute_macro, list_macros, set_macro_name, start_recording, stop_recording};
+use ape_core::{
+    Config, RecordedMacro, execute_macro, list_macros, set_macro_name, start_recording,
+    stop_recording,
+};
 use clap::{Parser, Subcommand};
 use env_logger::WriteStyle;
 use log::LevelFilter;
@@ -68,10 +71,7 @@ enum Command {
         repo_path: Option<PathBuf>,
     },
     #[command(about = "Set name for a macro")]
-    SetName {
-        id: Uuid,
-        name: String,
-    }
+    SetName { id: Uuid, name: String },
 }
 
 #[derive(Parser)]
@@ -132,7 +132,7 @@ impl Cli {
                 Ok(CliResponse::Success(resp))
             }
             Some(Command::SetName { id, name }) => {
-                let _ = set_macro_name(id, name)?;
+                set_macro_name(id, name)?;
                 Ok(CliResponse::default())
             }
             None => Err(Error::Cli("Please specify the command".to_string())),
