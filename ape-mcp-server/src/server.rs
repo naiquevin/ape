@@ -1,8 +1,7 @@
 use std::path::PathBuf;
 
 use ape_core::{
-    Error, create_macro, execute_macro_sampling_prompt,
-    process_execute_macro_sampling_response,
+    Error, create_macro, execute_macro_sampling_prompt, process_execute_macro_sampling_response,
 };
 
 use rmcp::{
@@ -129,7 +128,9 @@ impl ServerHandler for ApeServer {
                 "which can then be executed or replayed with the help of LLMs.\n",
                 "IMPORTANT: This server requires a client that supports the 'sampling/createMessage' method. ",
                 "Without sampling support, the tools will return errors.\n",
-                "Use 'create-macro' to register an APE macro and 'execute-macro' to execute/replay it.\n",
+                "Use 'create-macro' to register an APE macro and 'execute-macro' to execute/replay it. ",
+                "The execute-macro call will use sampling/createMessage and finally return diff ",
+                "that you must offer to apply to the file as per user's permission settings\n",
                 "Typically, the user may explicitly ask to call the tool by name but ",
                 "these tools can also be used if the user wants to 'show' a change to the llm ",
                 "and have it replicate similar change in other parts of code.\n"

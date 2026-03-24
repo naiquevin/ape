@@ -4,6 +4,16 @@ use serde::Deserialize;
 
 use crate::{Error, generate_diff};
 
+/// Cleans json string by removing markdown fences if present and
+/// stripping any whitespaces.
+fn clean_json(s: &str) -> &str {
+    s.trim()
+        .trim_start_matches("```json")
+        .trim_start_matches("```")
+        .trim_end_matches("```")
+        .trim()
+}
+
 #[derive(Debug, Deserialize)]
 pub struct Edit {
     #[allow(unused)]
@@ -11,6 +21,16 @@ pub struct Edit {
     pub start_line: usize,
     pub end_line: usize,
     pub replacement: Vec<String>,
+}
+
+impl TryFrom<&str> for Edit {
+    type Error = serde_json::Error;
+
+    fn try_from(json_str: &str) -> Result<Self, Self::Error> {
+        let cleaned_text = clean_json(json_str);
+        let inst = serde_json::from_str(cleaned_text)?;
+        Ok(inst)
+    }
 }
 
 impl Edit {

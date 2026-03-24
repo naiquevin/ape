@@ -10,7 +10,7 @@ pub use crate::error::Error;
 pub use crate::llm::Prompt;
 use crate::{
     edit::Edit,
-    llm::{clean_json, make_prompt},
+    llm::make_prompt,
     state::{MacroState, MacroStatus, list_recorded_macros},
 };
 
@@ -124,8 +124,7 @@ pub fn process_execute_macro_sampling_response(
     file_path: &Path,
     llm_response: &str,
 ) -> Result<ProposedChange, Error> {
-    let cleaned_text = clean_json(&llm_response);
-    let edit: Edit = serde_json::from_str(cleaned_text)?;
+    let edit = Edit::try_from(llm_response)?;
     let diff = edit.diff(file_path)?;
     let change = ProposedChange {
         id: Uuid::new_v4(),

@@ -98,14 +98,6 @@ Important notes:
     })
 }
 
-pub fn clean_json(s: &str) -> &str {
-    s.trim()
-        .trim_start_matches("```json")
-        .trim_start_matches("```")
-        .trim_end_matches("```")
-        .trim()
-}
-
 pub async fn send(
     config: &Config,
     curr_file: &Path,
@@ -132,7 +124,7 @@ mod openai {
 
     use crate::{Error, edit::Edit};
 
-    use super::{Model, Prompt, clean_json};
+    use super::{Model, Prompt};
 
     pub async fn send_message(
         model: &Model,
@@ -170,8 +162,8 @@ mod openai {
                     if let OutputMessageContent::OutputText(output_text) =
                         &output_message.content[0]
                     {
-                        let cleaned_text = clean_json(&output_text.text);
-                        llm_response = serde_json::from_str(cleaned_text)?;
+                        let edit = Edit::try_from(output_text.text.as_ref())?;
+                        llm_response = Some(edit);
                     }
                 } else {
                     println!(
@@ -192,7 +184,7 @@ mod claude {
 
     use crate::{Error, edit::Edit};
 
-    use super::{Model, Prompt, clean_json};
+    use super::{Model, Prompt};
 
     #[derive(Serialize)]
     struct Message {
@@ -257,10 +249,7 @@ mod claude {
             .ok_or(Error::LLMResponseFormat)?
             .text;
 
-        let json_str = clean_json(&raw_text);
-        // println!("Json string = {json_str}");
-
-        let edit = serde_json::from_str::<Edit>(json_str)?;
+        let edit = Edit::try_from(raw_text.as_ref())?;
 
         Ok(edit)
     }
