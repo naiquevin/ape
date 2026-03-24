@@ -10,7 +10,6 @@ pub use crate::error::Error;
 pub use crate::llm::Prompt;
 use crate::{
     edit::Edit,
-    llm::make_prompt,
     state::{MacroState, MacroStatus, list_recorded_macros},
 };
 
@@ -116,7 +115,7 @@ pub fn execute_macro_sampling_prompt(
 ) -> Result<Prompt, Error> {
     let state = MacroState::load(id)?;
     let diff_file = state.diff_file();
-    let prompt = make_prompt(file_path, &diff_file, user_message)?;
+    let prompt = Prompt::new(file_path, &diff_file, user_message)?;
     Ok(prompt)
 }
 

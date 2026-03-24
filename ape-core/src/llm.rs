@@ -53,17 +53,18 @@ pub struct Prompt {
     pub user: String,
 }
 
-pub fn make_prompt(
-    curr_file: &Path,
-    diff_file: &Path,
-    user_message: Option<&str>,
-) -> Result<Prompt, io::Error> {
-    let file_name = curr_file.file_name().unwrap().to_string_lossy();
-    let src_code = fs::read_to_string(curr_file)?;
-    let diff = fs::read_to_string(diff_file)?;
+impl Prompt {
+    pub fn new(
+        curr_file: &Path,
+        diff_file: &Path,
+        user_message: Option<&str>
+    ) -> Result<Self, io::Error> {
+        let file_name = curr_file.file_name().unwrap().to_string_lossy();
+        let src_code = fs::read_to_string(curr_file)?;
+        let diff = fs::read_to_string(diff_file)?;
 
-    let sys_prompt = format!(
-        r#"Go through the two files attached below (contents included inline):
+        let sys_prompt = format!(
+            r#"Go through the two files attached below (contents included inline):
 
 File: {file_name}
 -----------------
@@ -87,15 +88,16 @@ Important notes:
 * Don't include any prose or explanation. Just return the json so that it can be parsed.
 * Even if the changes are spread across different parts of the file, return a single json map in the above format.
 "#
-    );
-    let user_prompt = match user_message {
-        Some(msg) => msg.to_string(),
-        None => "Find all occurrences where a change similar to the example change can be made and do it".to_string(),
-    };
-    Ok(Prompt {
-        system: sys_prompt,
-        user: user_prompt,
-    })
+        );
+        let user_prompt = match user_message {
+            Some(msg) => msg.to_string(),
+            None => "Find all occurrences where a change similar to the example change can be made and do it".to_string(),
+        };
+        Ok(Self {
+            system: sys_prompt,
+            user: user_prompt,
+        })
+    }
 }
 
 pub async fn send(
@@ -104,7 +106,7 @@ pub async fn send(
     diff_file: &Path,
     user_message: Option<&str>,
 ) -> Result<Edit, Error> {
-    let prompt = make_prompt(curr_file, diff_file, user_message)?;
+    let prompt = Prompt::new(curr_file, diff_file, user_message)?;
     match config.provider() {
         Provider::OpenAI => openai::send_message(config.model(), config.api_key(), prompt).await,
         Provider::Claude => claude::send_message(config.model(), config.api_key(), prompt).await,
