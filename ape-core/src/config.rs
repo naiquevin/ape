@@ -4,9 +4,9 @@ use std::{
     io::Write,
 };
 
-use log::info;
 use secret_string::SecretString;
 use serde::{Deserialize, Serialize};
+use tracing::info;
 
 use crate::{
     Error, ape_dir,

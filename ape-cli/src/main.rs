@@ -5,22 +5,24 @@ use ape_core::{
     set_macro_name, start_recording, stop_recording,
 };
 use clap::{Parser, Subcommand};
-use env_logger::WriteStyle;
-use log::LevelFilter;
 use serde::Serialize;
 use serde_json::json;
+use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
 
 fn init_logging(verbosity: u8) {
-    let level = match verbosity {
-        0 => LevelFilter::Warn,
-        1 => LevelFilter::Info,
-        2 => LevelFilter::Debug,
-        _ => LevelFilter::Trace,
+    let base_level = match verbosity {
+        0 => "warn",
+        1 => "info",
+        2 => "debug",
+        _ => "trace",
     };
-    env_logger::Builder::new()
-        .filter(None, level)
-        .write_style(WriteStyle::Always)
+
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(base_level));
+
+    tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_ansi(true)
         .init();
 }
 

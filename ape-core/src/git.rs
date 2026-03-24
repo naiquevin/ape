@@ -4,7 +4,7 @@ use std::{
     process::Command,
 };
 
-use log::error;
+use tracing::error;
 
 use crate::Error;
 
