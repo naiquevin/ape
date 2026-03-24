@@ -13,7 +13,7 @@ use crate::{
     llm::{Model, Provider},
 };
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 struct Settings {
     provider: Provider,
     // @TODO: Validation model against provider as part of
@@ -31,6 +31,7 @@ impl Default for Settings {
     }
 }
 
+#[derive(Clone)]
 struct Credentials {
     api_key: SecretString<String>,
 }
@@ -39,6 +40,7 @@ fn read_secret(name: &str) -> Result<SecretString<String>, VarError> {
     std::env::var(name).map(SecretString::new)
 }
 
+#[derive(Clone)]
 pub struct Config {
     settings: Settings,
     creds: Credentials,

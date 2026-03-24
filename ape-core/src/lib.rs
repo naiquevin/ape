@@ -7,7 +7,12 @@ use uuid::Uuid;
 
 pub use crate::config::Config;
 pub use crate::error::Error;
-use crate::state::{MacroState, MacroStatus, list_recorded_macros};
+pub use crate::llm::Prompt;
+use crate::{
+    edit::Edit,
+    llm::{clean_json, make_prompt},
+    state::{MacroState, MacroStatus, list_recorded_macros},
+};
 
 mod config;
 mod edit;
@@ -96,6 +101,31 @@ pub async fn execute_macro(
     let state = MacroState::load(id)?;
     let diff_file = state.diff_file();
     let edit = llm::send(config, file_path, &diff_file, user_message).await?;
+    let diff = edit.diff(file_path)?;
+    let change = ProposedChange {
+        id: Uuid::new_v4(),
+        diff_b64: STANDARD.encode(diff.as_bytes()),
+    };
+    Ok(change)
+}
+
+pub fn execute_macro_sampling_prompt(
+    id: &Uuid,
+    file_path: &Path,
+    user_message: Option<&str>,
+) -> Result<Prompt, Error> {
+    let state = MacroState::load(id)?;
+    let diff_file = state.diff_file();
+    let prompt = make_prompt(file_path, &diff_file, user_message)?;
+    Ok(prompt)
+}
+
+pub fn process_execute_macro_sampling_response(
+    file_path: &Path,
+    llm_response: &str,
+) -> Result<ProposedChange, Error> {
+    let cleaned_text = clean_json(&llm_response);
+    let edit: Edit = serde_json::from_str(cleaned_text)?;
     let diff = edit.diff(file_path)?;
     let change = ProposedChange {
         id: Uuid::new_v4(),

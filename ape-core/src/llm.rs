@@ -48,12 +48,12 @@ impl Model {
     }
 }
 
-struct Prompt {
-    system: String,
-    user: String,
+pub struct Prompt {
+    pub system: String,
+    pub user: String,
 }
 
-fn make_prompt(
+pub fn make_prompt(
     curr_file: &Path,
     diff_file: &Path,
     user_message: Option<&str>,
@@ -83,8 +83,8 @@ a single json map with fields:
 - replacement (array of lines)
 
 Important notes:
-* Do not return the entire file. Only include lines that change.
-* No need to include any explanation. Just return the json so that it can be parsed.
+* Don't return the entire file. Only include lines that change.
+* Don't include any prose or explanation. Just return the json so that it can be parsed.
 * Even if the changes are spread across different parts of the file, return a single json map in the above format.
 "#
     );
@@ -98,7 +98,7 @@ Important notes:
     })
 }
 
-fn clean_json(s: &str) -> &str {
+pub fn clean_json(s: &str) -> &str {
     s.trim()
         .trim_start_matches("```json")
         .trim_start_matches("```")
