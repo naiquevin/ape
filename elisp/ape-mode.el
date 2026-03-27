@@ -62,7 +62,7 @@
 ;;      (use-package ape-mode
 ;;        :ensure nil
 ;;        :load-path "</path/to/ape-mode.el>"
-;;        :init
+;;        :config
 ;;        (ape-mode 1))
 ;;
 ;; Usage:
