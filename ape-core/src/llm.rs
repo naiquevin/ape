@@ -64,20 +64,15 @@ impl Prompt {
         let diff = fs::read_to_string(diff_file)?;
 
         let sys_prompt = format!(
-            r#"Go through the two files attached below (contents included inline):
-
-File: {file_name}
------------------
-{src_code}
-
-File: changes.diff
-------------------
+            r#"Go through the changes.diff file below:
+--- begin changes.diff ---
 {diff}
+--- end ---
 
-changes.diff represents an example change made to the source
-code. Understand the change and make additional changes as per the
-instructions in the user message that follows. Return the "edit" as
-a single json map with fields:
+It represents an example change made to the source code. Understand it
+and make additional changes in the target file (contents shared
+further below) as per the instructions in the user message that
+follows. Return the "edit" as a single json map with fields:
 - file
 - start_line
 - end_line
@@ -87,6 +82,10 @@ Important notes:
 * Don't return the entire file. Only include lines that change.
 * Don't include any prose or explanation. Just return the json so that it can be parsed.
 * Even if the changes are spread across different parts of the file, return a single json map in the above format.
+
+--- begin target file: {file_name} ---
+{src_code}
+--- end ---
 "#
         );
         let user_prompt = match user_message {
