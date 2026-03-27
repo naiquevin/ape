@@ -1,15 +1,16 @@
 # ape
 
-A _monkey-see-monkey-do_ approach to AI-assisted coding (or file
-editing in general). Think of it as emacs's keyboard-macro-like
+A "Monkey see, monkey do" approach to AI-assisted coding (or file
+editing in general). Think of it as emacs's [keyboard
+macros](https://www.gnu.org/software/emacs/manual/html_node/emacs/Keyboard-Macros.html)-like
 functionality but AI-driven.
 
 ## Motivation
 
 I've sometimes felt the need to be able to "show" a code change to LLM
-rather than having to explain it in plain English, which can get
-tedious and is often prone to ambiguity. The LLM can then be asked to
-make similar change elsewhere in the code base.
+rather than having to explain it in English, which can get tedious and
+is often prone to ambiguity. The LLM can then be asked to make similar
+change elsewhere in the code base.
 
 I built this tool as an experiment to see how well this approach works
 in practice and whether it is cost-efficient (i.e., consumes fewer
@@ -19,7 +20,7 @@ analysis of token usage yet.
 
 ## Installation
 
-The Emacs mode is not on MELPA yet. It also depends on a CLI component
+The emacs mode is not on MELPA yet. It also depends on a CLI component
 (distributed as part of the same repository). Follow these
 instructions to install it manually:
 
@@ -115,38 +116,51 @@ When using emacs, if these variables are not present in emacs's
 environment, it will prompt you for the relevant API key upon first
 use.
 
-## The MCP server
+## Under the hood
+
+The working is pretty simple. The tool stores the original diff with
+some metadata under the `~/.ape` directory. This means ape macros
+persist across emacs sessions.
+
+After restarting emacs, just run `C-c x v` or `M-x ape-view-macro` to
+list all macros and activate the one you want. Simply running `M-x
+ape-execute` will also prompt you to select the macro.
+
+## MCP server
 
 The MCP server implementation is not fully tested yet. The idea is to
 expose the same functionality for TUI-based AI-coding tools.
 
-However the current implementation relies of MCP sampling capability
-in the client. Funnily enough, Claude itself led me to believe that
-claude-code supports MCP server sampling when it [actually
+To build the mcp server run,
+
+``` shell
+cargo build -p ape-mcp-server --release
+```
+
+However the current implementation relies of [MCP
+sampling](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling)
+capability in the client. Funnily enough, Claude itself led me to
+believe that claude-code supports sampling when it [actually
 doesn't](https://github.com/anthropics/claude-code/issues/1785).
 
+## Using ape-cli by itself
 
+As mentioned earlier, most of the heavy lifting is done by the
+CLI. Non-emacs users can use the CLI directly, although not sure how
+useful that would be.
 
+Run `ape-cli --help` to learn about the usage.
 
+## Pending features
 
+- Interactive function in emacs to rename macros (the CLI already
+  provides the underlying functionality)
+- Ability to override the configured model when running `ape-execute`
+- Ability to execute the macro in the context of a selected region in
+  the emacs buffer.
+- Deletion / archival of older macros
 
+## LICENSE
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+[MIT](./LICENSE)
 
