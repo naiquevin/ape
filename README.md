@@ -18,6 +18,10 @@ tokens). My initial observation is that it kind of works (in the same
 way that LLMs generally work!). I haven’t done any comparative
 analysis of token usage yet.
 
+## Warning
+
+This is not mature software yet. Expect breaking changes.
+
 ## Installation
 
 The emacs mode is not on MELPA yet. It also depends on a CLI component
@@ -166,6 +170,7 @@ Run `ape-cli --help` to learn about the usage.
 - Ability to execute the macro in the context of a selected region in
   the emacs buffer.
 - Deletion / archival of older macros
+- Tracking token usage for comparative analysis
 
 ## LICENSE
 
