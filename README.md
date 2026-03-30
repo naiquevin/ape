@@ -118,13 +118,20 @@ use.
 
 ## Under the hood
 
-The working is pretty simple. The tool stores the original diff with
-some metadata under the `~/.ape` directory. This means ape macros
+The implementation is quite simple. The tool stores the original diff
+with some metadata under the `~/.ape` directory. This means ape macros
 persist across emacs sessions.
 
 After restarting emacs, just run `C-c x v` or `M-x ape-view-macro` to
 list all macros and activate the one you want. Simply running `M-x
 ape-execute` will also prompt you to select the macro.
+
+Also, even though the term "record" is used, technically it's not
+recording actions inside emacs. It just computes the diff of the
+source file before starting and after stopping a macro
+"recording". This means you can have an LLM generate the example
+change in one code path, modify it to your liking and then use `ape`
+to make similar change in rest of the code paths.
 
 ## MCP server
 
