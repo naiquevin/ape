@@ -57,7 +57,7 @@ impl Prompt {
     pub fn new(
         curr_file: &Path,
         diff_file: &Path,
-        user_message: Option<&str>
+        user_message: Option<&str>,
     ) -> Result<Self, io::Error> {
         let file_name = curr_file.file_name().unwrap().to_string_lossy();
         let src_code = fs::read_to_string(curr_file)?;
@@ -82,6 +82,7 @@ Important notes:
 * Don't return the entire file. Only include lines that change.
 * Don't include any prose or explanation. Just return the json so that it can be parsed.
 * Even if the changes are spread across different parts of the file, return a single json map in the above format.
+* Verify the json fields, particularly start_line and end_line, before producing the final result. 
 
 --- begin target file: {file_name} ---
 {src_code}
@@ -118,7 +119,8 @@ mod openai {
         config::OpenAIConfig,
         types::responses::{
             AssistantRole, CreateResponseArgs, EasyInputContent, EasyInputMessage, InputItem,
-            InputParam, MessageType, OutputItem, OutputMessageContent, OutputStatus, Role,
+            InputParam, MessageType, OutputItem, OutputMessageContent, OutputStatus, Reasoning,
+            ReasoningEffort, Role,
         },
     };
     use secret_string::SecretString;
@@ -134,8 +136,13 @@ mod openai {
     ) -> Result<Edit, Error> {
         let config = OpenAIConfig::new().with_api_key(api_key.value());
         let client = Client::with_config(config);
+        let r_opts = Reasoning {
+            effort: Some(ReasoningEffort::Medium),
+            ..Default::default()
+        };
         let request = CreateResponseArgs::default()
             .model(model.to_string())
+            .reasoning(r_opts)
             .input(InputParam::Items(vec![
                 InputItem::EasyMessage(EasyInputMessage {
                     r#type: MessageType::Message,
